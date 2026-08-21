@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>討論をつくる — 討論卓</title>
+<link rel="stylesheet" href="assets/tokens.css">
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="reveal">
+  <div class="eyebrow e4">Step 01–03 / Compose</div>
+  <h1>議題をひとつ投げると、<br><em>4人の論者</em>が席につく。</h1>
+  <p class="lede">全員があなたの案を疑い、互いの前提を潰し合います。あなたは議論に参加しません。読むだけで、自分の考えの浅かった場所が見えます。</p>
+  <div class="chips">
+    <span class="chip">カテゴリ <b>14</b></span>
+    <span class="chip">論者 <b>4</b></span>
+    <span class="chip">司会 <b>1</b></span>
+    <span class="chip">ラウンド <b>2–5</b></span>
+    <span class="chip">分量 <b>5,000字以上・上限なし</b></span>
+  </div>
+</header>
+
+<div class="panel reveal" id="diagram">
+<svg viewBox="0 0 660 372" role="img" aria-label="4人の論者が司会を囲む配置図">
+  <g class="web" id="web">
+    <line x1="140" y1="78" x2="520" y2="78"/><line x1="140" y1="290" x2="520" y2="290"/>
+    <line x1="140" y1="78" x2="140" y2="290"/><line x1="520" y1="78" x2="520" y2="290"/>
+    <line x1="140" y1="78" x2="520" y2="290"/><line x1="520" y1="78" x2="140" y2="290"/>
+  </g>
+  <g class="seat" id="g0">
+    <rect x="262" y="146" width="136" height="76" rx="12" fill="#EDEEF0" stroke="#14161B" stroke-width="1.4"/>
+    <text class="seat-tag" x="330" y="176" text-anchor="middle" fill="#14161B">CHAIR</text>
+    <text class="seat-name" x="330" y="200" text-anchor="middle" font-size="16">司会</text>
+  </g>
+  <g class="seat" id="g1">
+    <rect x="30" y="44" width="220" height="68" rx="12" fill="#E4F6EE" stroke="#0E9F6E" stroke-width="1.4"/>
+    <text class="seat-tag" x="48" y="70" fill="#0E9F6E">SEAT 01</text>
+    <text class="seat-name" id="s1" x="48" y="94">実行者</text>
+  </g>
+  <g class="seat" id="g2">
+    <rect x="410" y="44" width="220" height="68" rx="12" fill="#E8EEFE" stroke="#2563EB" stroke-width="1.4"/>
+    <text class="seat-tag" x="428" y="70" fill="#2563EB">SEAT 02</text>
+    <text class="seat-name" id="s2" x="428" y="94">懐疑派</text>
+  </g>
+  <g class="seat" id="g3">
+    <rect x="30" y="256" width="220" height="68" rx="12" fill="#FCE7F1" stroke="#DB2777" stroke-width="1.4"/>
+    <text class="seat-tag" x="48" y="282" fill="#DB2777">SEAT 03</text>
+    <text class="seat-name" id="s3" x="48" y="306">顧客の代弁者</text>
+  </g>
+  <g class="seat" id="g4">
+    <rect x="410" y="256" width="220" height="68" rx="12" fill="#F1E9FE" stroke="#7C3AED" stroke-width="1.4"/>
+    <text class="seat-tag" x="428" y="282" fill="#7C3AED">SEAT 04</text>
+    <text class="seat-name" id="s4" x="428" y="306">長期視点</text>
+  </g>
+  <text class="cap" x="30" y="356">破線は「前提の破壊」ラウンドで発生する相互反論。各自が最低2名を名指しで攻撃します。</text>
+</svg>
+</div>
+
+<section id="cast" class="reveal">
+  <div class="eyebrow e1">Step 01 / Cast</div>
+  <h2>カテゴリを選ぶ</h2>
+  <p class="sub">仕事から日常、教会の活動まで14種類。選ぶと配置図・論者・プロンプトが同時に差し替わります。</p>
+  <div id="tabGroups"></div>
+  <div class="roles" id="roles"></div>
+</section>
+
+<section id="input" class="reveal">
+  <div class="eyebrow e2">Step 02 / Input</div>
+  <h2>議題を入力する</h2>
+  <p class="sub">埋めた項目だけがプロンプトに反映されます。空欄は「未記入」として扱われ、論者は仮定を明示した上で議論します。入力内容はこの端末に自動保存され、取り込み画面へ引き継がれます。</p>
+
+  <div class="form">
+    <div class="field">
+      <label for="f-topic">議題・課題 <span>必須</span></label>
+      <textarea id="f-topic" rows="2" placeholder="例：今年の青年会の夏の行事を、例年のキャンプから日帰りの奉仕活動に変えるべきか"></textarea>
+    </div>
+    <div class="field">
+      <label for="f-goal">今回の目的 <span>この討論で何を得たいか</span></label>
+      <textarea id="f-goal" rows="2" placeholder="例：来月の会議で提案するための判断材料と、想定される反対意見を洗い出したい"></textarea>
+    </div>
+    <div class="field">
+      <label for="f-context">前提・背景 <span>相手が知らない事情</span></label>
+      <textarea id="f-context" rows="3" placeholder="例：昨年の参加は12名、うち初参加は1名。準備は3名に偏っている"></textarea>
+    </div>
+    <div class="field">
+      <label for="f-limit">制約・避けたいこと <span>触れてほしくない選択肢も</span></label>
+      <textarea id="f-limit" rows="2" placeholder="例：予算は据え置き。特定の人に負担を寄せる案は避けたい"></textarea>
+    </div>
+    <div class="field">
+      <label for="f-data">利用可能な情報・データ <span>数字・事実・引用</span></label>
+      <textarea id="f-data" rows="2" placeholder="例：過去3年の参加者数、アンケートの自由記述、会計報告の実績値"></textarea>
+    </div>
+    <div class="two">
+      <div class="field">
+        <label for="f-tone">議論の強度</label>
+        <select id="f-tone">
+          <option value="0">建設的 — 穏当に弱点を指摘</option>
+          <option value="1">厳しめ — 遠慮せず突く</option>
+          <option value="2" selected>容赦なし — 一切手加減しない</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-rounds">討論ラウンド数</label>
+        <select id="f-rounds">
+          <option value="2">2ラウンド — 短時間で要点だけ</option>
+          <option value="3" selected>3ラウンド — 標準</option>
+          <option value="4">4ラウンド — 再攻撃まで</option>
+          <option value="5">5ラウンド — 決着まで徹底的に</option>
+        </select>
+      </div>
+    </div>
+    <p class="hint">入力するとプロンプトが自動で書き換わります。あとはコピーして送るだけです。</p>
+  </div>
+</section>
+
+<section id="output" class="reveal">
+  <div class="eyebrow e3">Step 03 / Prompt</div>
+  <h2>コピーして送る</h2>
+  <p class="sub">生成されたプロンプトです。そのまま貼り付ければ討論が始まります。</p>
+  <div class="card">
+    <div class="card-bar">
+      <div class="t"><span id="cardTitle">仕事の意思決定・戦略</span><small id="cardMeta">3 ROUNDS / 容赦なし</small></div>
+      <button class="btn btn-primary" id="copyFull">コピー</button>
+    </div>
+    <div class="pre-wrap">
+      <pre id="fullPrompt"></pre>
+      <div class="veil"></div>
+    </div>
+    <div class="card-foot">
+      <button class="btn btn-ghost" id="toggleFull">全文を表示</button>
+      <button class="btn btn-ghost" id="clearAll">入力をクリア</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-bar">
+      <div class="t"><span>討論が終わったら</span><small>STEP 04 — STRUCTURE</small></div>
+      <a class="btn btn-primary" href="import.html">取り込み画面へ</a>
+    </div>
+    <div class="card-body">
+      <p class="sub" style="margin:0">討論が最後まで進んだら、同じチャットにもう1回だけプロンプトを投げます。討論が JSON に構造化され、論点マトリクス・議論フロー図・想定問答集として残ります。ここで入力した議題とカテゴリはそのまま引き継がれます。</p>
+    </div>
+  </div>
+</section>
+
+<section id="rounds" class="reveal">
+  <div class="eyebrow e4">Reference / Rounds</div>
+  <h2>いま選んでいる進行</h2>
+  <p class="sub">深さは往復の回数ではなく役割分担から出ます。中核は「前提の破壊」です。</p>
+  <div class="rounds" id="roundCards"></div>
+</section>
+
+<section class="reveal">
+  <div class="eyebrow e1">Reference / Plans</div>
+  <h2>ラウンド数の選び方</h2>
+  <p class="sub">議題の重さで決めます。迷ったら3です。</p>
+  <div class="plans" id="plans"></div>
+</section>
+
+<footer>
+  <span>DISCUSSION PROTOCOL v4 — 14 CATEGORIES / 4 SEATS / NO MERCY</span>
+  <span><a href="index.html">記録を見る</a></span>
+</footer>
+</div>
+
+<script src="assets/catalog.js"></script>
+<script src="assets/schema.js"></script>
+<script src="assets/prompt.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function(){
+"use strict";
+var DA = window.DA;
+var $ = DA.$;
+var CATS = DA.CATS, GROUPS = DA.GROUPS, ROUND_SETS = DA.ROUND_SETS, TONES = DA.TONES, PLAN_NOTES = DA.PLAN_NOTES;
+
+var current = 0;
+var F = { topic:$("f-topic"), goal:$("f-goal"), context:$("f-context"), limit:$("f-limit"),
+          data:$("f-data"), tone:$("f-tone"), rounds:$("f-rounds") };
+
+function state(){
+  return {
+    cat: CATS[current],
+    rounds: parseInt(F.rounds.value,10),
+    toneIdx: parseInt(F.tone.value,10),
+    input: { topic:F.topic.value, goal:F.goal.value, context:F.context.value,
+             limit:F.limit.value, data:F.data.value }
+  };
+}
+
+function renderRoundCards(){
+  var set = ROUND_SETS[parseInt(F.rounds.value,10)];
+  var box = $("roundCards"); box.innerHTML = "";
+  set.forEach(function(r,i){
+    box.appendChild(DA.el("div.round", null, [
+      DA.el("span.r.r-" + (i+1), { text:"ROUND " + (i+1) }),
+      DA.el("h3", { text:r.name }),
+      DA.el("p", { text:r.rule })
+    ]));
+  });
+}
+
+function renderPlans(){
+  var cur = F.rounds.value;
+  var box = $("plans"); box.innerHTML = "";
+  [2,3,4,5].forEach(function(n){
+    var seq = DA.el("div.seq");
+    ROUND_SETS[n].forEach(function(r,i){
+      if(i > 0) seq.appendChild(DA.el("i", { text:"→" }));
+      seq.appendChild(document.createTextNode(r.name));
+    });
+    box.appendChild(DA.el("div.plan" + (String(n) === cur ? ".on" : ""), null, [
+      DA.el("div.k", { text:n + " ROUNDS" }),
+      DA.el("div", null, [ seq, DA.el("p.when", { text:PLAN_NOTES[n] }) ])
+    ]));
+  });
+}
+
+function refresh(){
+  $("fullPrompt").textContent = DA.buildDebatePrompt(state());
+  $("cardTitle").textContent = CATS[current].label;
+  $("cardMeta").textContent = F.rounds.value + " ROUNDS / " + TONES[parseInt(F.tone.value,10)].label;
+  renderRoundCards(); renderPlans();
+  DA.store.saveDraft({
+    catLabel: CATS[current].label,
+    rounds: parseInt(F.rounds.value,10),
+    toneIdx: parseInt(F.tone.value,10),
+    input: state().input
+  });
+}
+
+/* ---------- カテゴリタブ ---------- */
+var tabGroups = $("tabGroups");
+var allTabs = [], idx = 0;
+GROUPS.forEach(function(g){
+  var row = DA.el("div.tabs", { role:"tablist" });
+  g.items.forEach(function(){
+    var i = idx++;
+    var b = DA.el("button", { type:"button", text:CATS[i].label, role:"tab",
+                              "aria-selected": i === 0 ? "true" : "false" });
+    b.addEventListener("click", function(){ select(i); });
+    row.appendChild(b); allTabs.push(b);
+  });
+  tabGroups.appendChild(DA.el("div.group-label", { text:g.name }));
+  tabGroups.appendChild(row);
+});
+
+function select(i){
+  current = i;
+  var cat = CATS[i];
+  allTabs.forEach(function(b,j){ b.setAttribute("aria-selected", j === i ? "true" : "false"); });
+
+  var seats = ["s1","s2","s3","s4"].map(function(id){ return $(id); });
+  seats.forEach(function(el){ el.classList.add("fade","out"); });
+  setTimeout(function(){
+    cat.roles.forEach(function(r,k){
+      seats[k].textContent = r[0];
+      seats[k].setAttribute("font-size", r[0].length > 9 ? "13" : (r[0].length > 7 ? "15" : "17"));
+    });
+    seats.forEach(function(el){ el.classList.remove("out"); });
+  }, 160);
+
+  var roles = $("roles"); roles.innerHTML = "";
+  cat.roles.forEach(function(r,k){
+    roles.appendChild(DA.el("div.role", null, [
+      DA.el("div.n", { text:"SEAT " + String(k+1).padStart(2,"0") }),
+      DA.el("h3", { text:r[0] }),
+      DA.el("p", { text:r[1] })
+    ]));
+  });
+  refresh();
+}
+
+Object.keys(F).forEach(function(k){
+  F[k].addEventListener("input", refresh);
+  F[k].addEventListener("change", refresh);
+});
+
+DA.bindCopy($("copyFull"), function(){ return DA.buildDebatePrompt(state()); });
+
+$("toggleFull").addEventListener("click", function(){
+  var open = $("fullPrompt").classList.toggle("open");
+  $("toggleFull").textContent = open ? "折りたたむ" : "全文を表示";
+});
+$("clearAll").addEventListener("click", function(){
+  [F.topic,F.goal,F.context,F.limit,F.data].forEach(function(el){ el.value = ""; });
+  refresh(); F.topic.focus();
+});
+
+/* ---------- 配置図の演出 ---------- */
+var seatIO = new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(!e.isIntersecting) return;
+    ["g0","g1","g2","g3","g4"].forEach(function(id,k){
+      setTimeout(function(){ $(id).classList.add("on"); }, 120*k);
+    });
+    setTimeout(function(){ $("web").classList.add("on"); }, 620);
+    seatIO.unobserve(e.target);
+  });
+}, { threshold:.25 });
+seatIO.observe($("diagram"));
+
+/* ---------- 下書きの復元 ---------- */
+(function restore(){
+  var d = DA.store.loadDraft();
+  if(d && d.input){
+    F.topic.value = d.input.topic || ""; F.goal.value = d.input.goal || "";
+    F.context.value = d.input.context || ""; F.limit.value = d.input.limit || "";
+    F.data.value = d.input.data || "";
+  }
+  if(d && d.rounds) F.rounds.value = String(d.rounds);
+  if(d && typeof d.toneIdx === "number") F.tone.value = String(d.toneIdx);
+  var start = 0;
+  if(d && d.catLabel){
+    for(var i=0;i<CATS.length;i++){ if(CATS[i].label === d.catLabel){ start = i; break; } }
+  }
+  select(start);
+})();
+
+DA.boot("compose");
+})();
+</script>
+</body>
+</html>

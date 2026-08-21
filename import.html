@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>討論を取り込む — 討論卓</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:26px;align-items:start}
+  @media (max-width:900px){ .split{grid-template-columns:1fr} }
+  .modes{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .modes button{appearance:none;cursor:pointer;background:#fff;color:var(--ink-2);
+    border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-family:var(--sans);
+    font-size:13px;transition:all .18s}
+  .modes button[aria-pressed="true"]{background:var(--c5);border-color:var(--c5);color:#fff;font-weight:700}
+  .preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin-top:16px}
+  .pv{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:center}
+  .pv .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--ink-3);font-weight:700}
+  .pv .v{font-size:20px;font-weight:700;line-height:1.4}
+  .pv.zero .v{color:var(--ink-3)}
+  #paste{min-height:260px}
+</style>
+</head>
+<body>
+
+<div class="wrap-wide">
+
+<header class="reveal">
+  <div class="eyebrow e3">Step 04 / Structure</div>
+  <h1>討論を、<em>構造</em>に変える。</h1>
+  <p class="lede">討論が終わった同じチャットに、もう1回だけプロンプトを投げます。返ってきた JSON を貼り付ければ、論点マトリクス・議論フロー図・想定問答集として保存されます。</p>
+</header>
+
+<div id="topNotice"></div>
+
+<div class="split">
+
+  <!-- 左：構造化プロンプト -->
+  <section class="reveal" style="padding-top:34px">
+    <div class="eyebrow e2">A / Prompt</div>
+    <h2 style="font-size:21px">構造化プロンプトを送る</h2>
+    <p class="sub" style="font-size:14px">討論と同じチャットに貼ってください。討論の内容を読み直して JSON にまとめ直します。</p>
+
+    <div class="form" style="margin-top:18px;gap:12px">
+      <div class="field">
+        <label for="i-cat">カテゴリ <span>討論で使ったもの</span></label>
+        <select id="i-cat"></select>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="i-rounds">ラウンド数</label>
+          <select id="i-rounds">
+            <option value="2">2</option><option value="3">3</option>
+            <option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="i-tone">強度</label>
+          <select id="i-tone">
+            <option value="0">建設的</option><option value="1">厳しめ</option><option value="2">容赦なし</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="i-topic">議題 <span>参照用</span></label>
+        <textarea id="i-topic" rows="2" placeholder="討論にかけた議題"></textarea>
+      </div>
+    </div>
+
+    <div class="modes" role="group" aria-label="出力モード">
+      <button type="button" id="m-full" aria-pressed="true">一括で出す</button>
+      <button type="button" id="m-p1" aria-pressed="false">PART 1（論点・発言）</button>
+      <button type="button" id="m-p2" aria-pressed="false">PART 2（リスク〜総括）</button>
+    </div>
+    <p class="hint">出力が途中で切れる場合は PART 1 → PART 2 の順に2回に分けて出させ、それぞれを右側で「解析して追加」してください。</p>
+
+    <div class="card">
+      <div class="card-bar">
+        <div class="t"><span id="pTitle">構造化プロンプト</span><small id="pMeta">FULL</small></div>
+        <button class="btn btn-primary" id="copyStruct">コピー</button>
+      </div>
+      <div class="pre-wrap">
+        <pre id="structPrompt"></pre>
+        <div class="veil"></div>
+      </div>
+      <div class="card-foot">
+        <button class="btn btn-ghost" id="toggleStruct">全文を表示</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 右：貼り付け -->
+  <section class="reveal" style="padding-top:34px">
+    <div class="eyebrow e4">B / Import</div>
+    <h2 style="font-size:21px">返ってきた JSON を貼る</h2>
+    <p class="sub" style="font-size:14px">コードブロックごと貼って構いません。前後の文章・末尾カンマ・全角記号は自動で直します。</p>
+
+    <div class="field" style="margin-top:18px">
+      <label for="paste">JSON <span>ChatGPT の返答</span></label>
+      <textarea id="paste" class="mono" rows="12" placeholder='{ "schema": "debate-record/v1", ... }'></textarea>
+    </div>
+    <div class="toolbar" style="margin-top:12px">
+      <button class="btn btn-primary" id="parseBtn">解析して追加</button>
+      <button class="btn btn-ghost" id="resetBtn">やり直す</button>
+    </div>
+
+    <div id="result"></div>
+
+    <div id="saveBox" style="display:none">
+      <div class="preview" id="preview"></div>
+      <div class="form" style="margin-top:18px;gap:12px">
+        <div class="field">
+          <label for="i-title">タイトル <span>記録一覧に表示されます</span></label>
+          <input type="text" id="i-title" placeholder="この討論の名前">
+        </div>
+        <div class="field">
+          <label for="i-tags">タグ <span>カンマ区切り・横断検索に使います</span></label>
+          <input type="text" id="i-tags" placeholder="青年会, 行事, 予算">
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn-primary" id="saveBtn">この内容で保存する</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <span>STRUCTURE — debate-record/v1</span>
+  <span><a href="index.html">記録を見る</a> ／ <a href="compose.html">討論をつくる</a></span>
+</footer>
+</div>
+
+<script src="assets/catalog.js"></script>
+<script src="assets/schema.js"></script>
+<script src="assets/prompt.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function(){
+"use strict";
+var DA = window.DA, $ = DA.$;
+var CATS = DA.CATS;
+
+var mode = "full";
+var pending = null;          // 解析済みの生オブジェクト（PART 併合用）
+var editingId = DA.param("id") || "";
+
+/* ---------- カテゴリ select ---------- */
+(function fillCats(){
+  var sel = $("i-cat");
+  DA.GROUPS.forEach(function(g){
+    var og = document.createElement("optgroup");
+    og.label = g.name;
+    g.items.forEach(function(it){
+      og.appendChild(DA.el("option", { value:it.label, text:it.label }));
+    });
+    sel.appendChild(og);
+  });
+})();
+
+function state(){
+  var cat = DA.findCat($("i-cat").value) || CATS[0];
+  return {
+    cat: cat,
+    rounds: parseInt($("i-rounds").value,10),
+    toneIdx: parseInt($("i-tone").value,10),
+    input: { topic: $("i-topic").value }
+  };
+}
+
+function refreshPrompt(){
+  var st = state();
+  $("structPrompt").textContent = DA.buildStructurePrompt(st, mode);
+  $("pMeta").textContent = mode === "full" ? "FULL" : (mode === "p1" ? "PART 1 / 2" : "PART 2 / 2");
+  DA.store.saveDraft({
+    catLabel: st.cat.label, rounds: st.rounds, toneIdx: st.toneIdx,
+    input: Object.assign(DA.store.loadDraft().input || {}, { topic: st.input.topic })
+  });
+}
+
+["i-cat","i-rounds","i-tone","i-topic"].forEach(function(id){
+  $(id).addEventListener("input", refreshPrompt);
+  $(id).addEventListener("change", refreshPrompt);
+});
+
+[["m-full","full"],["m-p1","p1"],["m-p2","p2"]].forEach(function(p){
+  $(p[0]).addEventListener("click", function(){
+    mode = p[1];
+    ["m-full","m-p1","m-p2"].forEach(function(id){
+      $(id).setAttribute("aria-pressed", id === p[0] ? "true" : "false");
+    });
+    refreshPrompt();
+  });
+});
+
+DA.bindCopy($("copyStruct"), function(){ return DA.buildStructurePrompt(state(), mode); });
+$("toggleStruct").addEventListener("click", function(){
+  var open = $("structPrompt").classList.toggle("open");
+  $("toggleStruct").textContent = open ? "折りたたむ" : "全文を表示";
+});
+
+/* ---------- 解析 ---------- */
+function renderPreview(rec){
+  var s = DA.stat(rec);
+  var rows = [
+    ["ISSUES", s.issues], ["MOVES", s.moves], ["RISKS", s.risks],
+    ["IDEAS", s.ideas], ["OBJECTIONS", s.objections], ["TASKS", s.tasksAll]
+  ];
+  var box = $("preview"); box.innerHTML = "";
+  rows.forEach(function(r){
+    box.appendChild(DA.el("div.pv" + (r[1] ? "" : ".zero"), null, [
+      DA.el("div.k", { text:r[0] }),
+      DA.el("div.v", { text:String(r[1]) })
+    ]));
+  });
+}
+
+$("parseBtn").addEventListener("click", function(){
+  var text = $("paste").value;
+  var obj;
+  try{
+    obj = DA.repairJson(text);
+  }catch(err){
+    DA.notice($("result"), "err", "<b>読み込めませんでした</b><br>" + DA.esc(err.message));
+    $("saveBox").style.display = "none";
+    return;
+  }
+
+  pending = pending ? DA.mergeParts(pending, obj) : obj;
+
+  var st = state();
+  var rec = DA.normalize(pending, {
+    category: st.cat.label,
+    rounds: st.rounds,
+    tone: (DA.TONES[st.toneIdx] || {}).label || "",
+    _input: Object.assign({ topic:"", goal:"", context:"", limit:"", data:"" },
+                          DA.store.loadDraft().input || {}, { topic: st.input.topic }),
+    _id: editingId || undefined
+  });
+
+  var warns = DA.validate(rec);
+  var html = "<b>読み込みました。</b>論点 " + rec.issues.length + " 件／発言 " + rec.moves.length +
+             " 件／想定問答 " + rec.objections.length + " 件";
+  if(warns.length){
+    html += "<br>次の点を確認してください：<ul>" +
+      warns.map(function(w){ return "<li>" + DA.esc(w) + "</li>"; }).join("") + "</ul>";
+    DA.notice($("result"), "warn", html);
+  }else{
+    DA.notice($("result"), "ok", html);
+  }
+
+  $("i-title").value = rec.meta.title;
+  $("i-tags").value = rec.meta.tags.join(", ");
+  renderPreview(rec);
+  $("saveBox").style.display = "block";
+  $("saveBox").scrollIntoView({ behavior:"smooth", block:"nearest" });
+});
+
+$("resetBtn").addEventListener("click", function(){
+  pending = null;
+  $("paste").value = "";
+  $("result").innerHTML = "";
+  $("saveBox").style.display = "none";
+});
+
+$("saveBtn").addEventListener("click", function(){
+  if(!pending) return;
+  var st = state();
+  var rec = DA.normalize(pending, {
+    category: st.cat.label, rounds: st.rounds,
+    tone: (DA.TONES[st.toneIdx] || {}).label || "",
+    _input: Object.assign({ topic:"", goal:"", context:"", limit:"", data:"" },
+                          DA.store.loadDraft().input || {}, { topic: st.input.topic }),
+    _id: editingId || undefined
+  });
+  rec.meta.title = ($("i-title").value || "").trim() || rec.meta.title;
+  rec.meta.tags = ($("i-tags").value || "").split(/[,、]/).map(function(s){ return s.trim(); }).filter(Boolean);
+
+  try{
+    DA.store.save(rec);
+  }catch(err){
+    DA.notice($("result"), "err", DA.esc(err.message));
+    return;
+  }
+  location.href = "record.html?id=" + encodeURIComponent(rec._id);
+});
+
+/* ---------- 初期化 ---------- */
+(function init(){
+  var d = DA.store.loadDraft();
+  if(d){
+    if(d.catLabel) $("i-cat").value = d.catLabel;
+    if(d.rounds) $("i-rounds").value = String(d.rounds);
+    if(typeof d.toneIdx === "number") $("i-tone").value = String(d.toneIdx);
+    if(d.input && d.input.topic) $("i-topic").value = d.input.topic;
+  }
+  if(!$("i-cat").value) $("i-cat").value = CATS[0].label;
+
+  if(editingId){
+    var old = DA.store.get(editingId);
+    if(old){
+      $("i-cat").value = old.meta.category || $("i-cat").value;
+      $("i-rounds").value = String(old.meta.rounds || 3);
+      $("i-topic").value = (old._input && old._input.topic) || "";
+      DA.notice($("topNotice"), "warn",
+        "<b>既存の記録を上書きします：</b>" + DA.esc(old.meta.title) +
+        "<br>新しい記録として保存したい場合は <a href=\"import.html\">こちら</a> から開き直してください。");
+    }
+  }
+  refreshPrompt();
+  DA.boot("import");
+})();
+})();
+</script>
+</body>
+</html>

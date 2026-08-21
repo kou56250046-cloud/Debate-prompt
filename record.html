@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>討論の記録 — 討論卓</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+  .rec-head{padding:56px 0 0}
+  .rec-head .meta{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--ink-3);
+    display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .rec-head h1{font-size:clamp(25px,4vw,36px);margin:14px 0 0}
+  .rec-head .topic{margin:16px 0 0;color:var(--ink-2);font-size:15px;line-height:1.85;max-width:44em;
+    border-left:3px solid var(--line);padding-left:16px}
+  .jump{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}
+  .jump a{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 14px;
+    font-size:12.5px;color:var(--ink-2);text-decoration:none;transition:all .18s}
+  .jump a:hover{border-color:var(--c4);color:var(--c4)}
+  .acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .filterbar{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap}
+  .filterbar select{font-family:var(--sans);font-size:13.5px;border:1px solid var(--line);
+    border-radius:9px;padding:7px 12px;background:#fff;color:var(--ink)}
+  .deep{margin-top:8px}
+  #deepBox{display:none}
+</style>
+</head>
+<body>
+
+<div class="wrap-wide">
+
+<div id="notFound" style="display:none">
+  <section class="tight">
+    <div class="empty">
+      <h3>この記録は見つかりませんでした</h3>
+      <p>URL が古いか、ブラウザの保存データが消えている可能性があります。</p>
+      <a class="btn btn-primary" href="index.html">記録一覧へ</a>
+    </div>
+  </section>
+</div>
+
+<div id="main" style="display:none">
+
+<header class="rec-head">
+  <div class="meta" id="recMeta"></div>
+  <h1 id="recTitle"></h1>
+  <p class="topic" id="recTopic"></p>
+  <div class="tagrow" id="recTags"></div>
+  <div class="jump no-print">
+    <a href="#m-matrix">論点マトリクス</a>
+    <a href="#m-flow">議論フロー</a>
+    <a href="#m-quad">リスク・アイデア</a>
+    <a href="#m-lists">決定・タスク</a>
+    <a href="#m-qa">想定問答集</a>
+    <a href="#m-sum">総括</a>
+  </div>
+  <div class="acts no-print">
+    <button class="btn btn-primary" id="printQA">想定問答集を印刷</button>
+    <button class="btn btn-ghost" id="copyMd">Markdown をコピー</button>
+    <button class="btn btn-ghost" id="dlMd">.md で保存</button>
+    <button class="btn btn-ghost" id="dlJson">JSON で保存</button>
+    <a class="btn btn-ghost" id="reimport" href="#">取り込み直す</a>
+    <button class="btn btn-danger" id="delBtn">削除</button>
+  </div>
+</header>
+
+<section id="m-matrix" class="tight">
+  <div class="sec-head">
+    <div>
+      <div class="eyebrow e1">01 / Stance</div>
+      <h2>誰が、どの論点で、どちら側か</h2>
+    </div>
+  </div>
+  <p class="sub">重要度の高い論点から並んでいます。丸をクリックすると、その論者の主張と根拠が出ます。</p>
+  <div id="matrix"></div>
+</section>
+
+<section id="m-flow" class="tight no-print">
+  <div class="eyebrow e2">02 / Flow</div>
+  <h2>議論はどう動いたか</h2>
+  <p class="sub">横がラウンド、縦が論者。赤い破線は「誰が誰の前提を潰したか」です。ノードをクリックすると発言の要点が出ます。</p>
+  <div class="filterbar">
+    <label for="flowFilter" style="font-size:13px;color:var(--ink-3)">論点で絞る</label>
+    <select id="flowFilter"></select>
+  </div>
+  <div id="flow"></div>
+</section>
+
+<section id="m-quad" class="tight no-print">
+  <div class="eyebrow e3">03 / Risk &amp; Idea</div>
+  <h2>リスクとアイデアの置き場所</h2>
+  <p class="sub">右上ほど先に手を打つべきものです。番号は下の一覧と対応します。</p>
+  <div class="quads">
+    <div class="quad">
+      <h3>リスク</h3>
+      <p class="qsub">起こりやすさ × 影響</p>
+      <div id="qRisk"></div>
+    </div>
+    <div class="quad">
+      <h3>アイデア</h3>
+      <p class="qsub">効果 × 労力（左上＝少ない労力で効く）</p>
+      <div id="qIdea"></div>
+    </div>
+  </div>
+</section>
+
+<section id="m-lists" class="tight no-print">
+  <div class="eyebrow e4">04 / Output</div>
+  <h2>決まったこと、残ったこと</h2>
+  <p class="sub">タスクのチェックはこの端末に保存されます。未解決の論点は、そのまま続きの討論プロンプトを作れます。</p>
+  <div class="lists">
+    <div class="listcard">
+      <h3>決定事項 <span class="badge" id="cDec">0</span></h3>
+      <div id="decList"></div>
+    </div>
+    <div class="listcard">
+      <h3>タスク <span class="badge" id="cTask">0</span></h3>
+      <div id="taskList"></div>
+    </div>
+    <div class="listcard">
+      <h3>未解決の論点 <span class="badge b-conflict" id="cOpen">0</span></h3>
+      <div id="openList"></div>
+    </div>
+  </div>
+  <div class="card" id="deepBox">
+    <div class="card-bar">
+      <div class="t"><span id="deepTitle">深掘りプロンプト</span><small>DEEP DIVE — 2 ROUNDS</small></div>
+      <button class="btn btn-primary" id="copyDeep">コピー</button>
+    </div>
+    <div class="pre-wrap">
+      <pre id="deepPrompt" class="open"></pre>
+    </div>
+    <div class="card-foot">
+      <span class="hint">同じチャットに貼ると、この論点だけを2ラウンドで詰め直します。終わったら「取り込む」で新しい記録として保存できます。</span>
+    </div>
+  </div>
+</section>
+
+<section id="m-qa" class="tight">
+  <div class="eyebrow e5">05 / Q&amp;A</div>
+  <h2>会議で出そうな意見と、その返し</h2>
+  <p class="sub no-print">これが会議に持ち込む1枚です。印刷するとこのセクションだけが紙面に出ます。</p>
+  <div class="print-only" id="printHead"></div>
+  <div id="qa"></div>
+</section>
+
+<section id="m-sum" class="tight no-print">
+  <div class="eyebrow e1">06 / Verdict</div>
+  <h2>司会の総括</h2>
+  <div class="summary-box" id="summary"></div>
+</section>
+
+<footer class="no-print">
+  <span id="footMeta"></span>
+  <span><a href="index.html">記録一覧</a> ／ <a href="compose.html">討論をつくる</a></span>
+</footer>
+</div>
+</div>
+
+<script src="assets/catalog.js"></script>
+<script src="assets/schema.js"></script>
+<script src="assets/prompt.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script src="assets/charts.js"></script>
+<script src="assets/qa.js"></script>
+<script>
+(function(){
+"use strict";
+var DA = window.DA, $ = DA.$;
+
+var id = DA.param("id");
+var rec = id ? DA.store.get(id) : null;
+
+if(!rec){
+  $("notFound").style.display = "block";
+  DA.boot("index");
+  return;
+}
+$("main").style.display = "block";
+document.title = rec.meta.title + " — 討論卓";
+
+/* ---------- ヘッダ ---------- */
+(function head(){
+  var m = $("recMeta");
+  m.appendChild(DA.el("span", { text: DA.fmtDate(rec.meta.date) }));
+  if(rec.meta.category) m.appendChild(DA.el("span", { text: rec.meta.category }));
+  m.appendChild(DA.el("span", { text: rec.meta.rounds + " ROUNDS" }));
+  if(rec.meta.tone) m.appendChild(DA.el("span", { text: rec.meta.tone }));
+
+  $("recTitle").textContent = rec.meta.title;
+  var topic = (rec._input && rec._input.topic) || "";
+  if(topic) $("recTopic").textContent = topic;
+  else $("recTopic").style.display = "none";
+
+  var tg = $("recTags");
+  rec.meta.tags.forEach(function(t){ tg.appendChild(DA.el("span.tag", { text:t })); });
+
+  $("reimport").href = "import.html?id=" + encodeURIComponent(rec._id);
+  $("footMeta").textContent = "RECORD " + rec._id + " — " + DA.SCHEMA_VERSION;
+
+  var ph = $("printHead");
+  ph.appendChild(DA.el("h1", { style:"font-size:18pt;margin:0 0 6pt", text: rec.meta.title }));
+  if(topic) ph.appendChild(DA.el("p", { style:"margin:0 0 10pt;font-size:10pt", text: topic }));
+})();
+
+/* ---------- 操作 ---------- */
+$("printQA").addEventListener("click", function(){ window.print(); });
+DA.bindCopy($("copyMd"), function(){ return DA.recordMarkdown(rec); });
+$("dlMd").addEventListener("click", function(){
+  DA.download(DA.safeName(rec.meta.title) + ".md", DA.recordMarkdown(rec), "text/markdown");
+});
+$("dlJson").addEventListener("click", function(){
+  DA.download(DA.safeName(rec.meta.title) + ".json", JSON.stringify(rec, null, 2), "application/json");
+});
+(function del(){
+  var b = $("delBtn"), armed = false, t = null;
+  b.addEventListener("click", function(){
+    if(!armed){
+      armed = true;
+      b.textContent = "もう一度押すと削除";
+      t = setTimeout(function(){ armed = false; b.textContent = "削除"; }, 4000);
+      return;
+    }
+    clearTimeout(t);
+    DA.store.remove(rec._id);
+    location.href = "index.html";
+  });
+})();
+
+/* ---------- ① マトリクス ---------- */
+DA.renderStanceMatrix($("matrix"), rec);
+
+/* ---------- ② フロー ---------- */
+(function flow(){
+  var sel = $("flowFilter");
+  sel.appendChild(DA.el("option", { value:"", text:"すべての論点" }));
+  rec.issues.forEach(function(i){
+    sel.appendChild(DA.el("option", { value:i.id, text:i.label }));
+  });
+  DA.renderFlowDiagram($("flow"), rec);
+  sel.addEventListener("change", function(){
+    if($("flow").__applyFilter) $("flow").__applyFilter(sel.value);
+  });
+})();
+
+/* ---------- ③ 2×2 ---------- */
+DA.renderQuadrant($("qRisk"), {
+  accent: "#DC2626",
+  xAxis: "起こりやすさ", yAxis: "影響",
+  zones: { tr:"最優先で潰す", tl:"備えだけ用意", bl:"様子見" },
+  aria: "リスクの分布",
+  emptyText: "リスクは記録されていません。",
+  items: rec.risks.map(function(r){
+    return { text:r.text, x:r.likelihood, y:r.impact, note: r.mitigation ? "対策：" + r.mitigation : "",
+             by: r.raised_by ? DA.seatName(rec, r.raised_by) : "" };
+  })
+});
+DA.renderQuadrant($("qIdea"), {
+  accent: "#7C3AED",
+  xAxis: "労力", yAxis: "効果",
+  zones: { tr:"大勝負", tl:"まずここから", bl:"余力があれば" },
+  aria: "アイデアの分布",
+  emptyText: "アイデアは記録されていません。",
+  items: rec.ideas.map(function(i){
+    return { text:i.text, x:i.effort, y:i.impact, note:"",
+             by: i.raised_by ? DA.seatName(rec, i.raised_by) : "" };
+  })
+});
+
+/* ---------- ④ リスト ---------- */
+function listInto(host, items, render){
+  host.innerHTML = "";
+  if(!items.length){
+    host.appendChild(DA.el("div.none", { text:"該当なし" }));
+    return;
+  }
+  var ul = DA.el("ul");
+  items.forEach(function(it, i){ ul.appendChild(render(it, i)); });
+  host.appendChild(ul);
+}
+
+listInto($("decList"), rec.decisions, function(d){
+  return DA.el("li", null, [
+    document.createTextNode(d.text),
+    DA.el("small", { text:(d.rationale ? "理由：" + d.rationale + "　" : "") + "確度 " + d.confidence })
+  ]);
+});
+$("cDec").textContent = String(rec.decisions.length);
+
+function renderTasks(){
+  listInto($("taskList"), rec.tasks, function(t, i){
+    var cb = DA.el("input", { type:"checkbox" });
+    cb.checked = !!t.done;
+    cb.addEventListener("change", function(){
+      rec.tasks[i].done = cb.checked;
+      try{ DA.store.save(rec); }catch(e){}
+      renderTasks();
+    });
+    var sub = [t.owner ? "担当：" + t.owner : "", t.due ? "期限：" + t.due : "",
+               t.blocked_by ? "待ち：" + t.blocked_by : ""].filter(Boolean).join("　");
+    return DA.el("li", null, [
+      DA.el("div.task" + (t.done ? ".done" : ""), null, [
+        cb,
+        DA.el("div", null, [ document.createTextNode(t.text), sub ? DA.el("small", { text:sub }) : null ])
+      ])
+    ]);
+  });
+  var open = rec.tasks.filter(function(t){ return !t.done; }).length;
+  $("cTask").textContent = open + " / " + rec.tasks.length;
+}
+renderTasks();
+
+/* 未解決の論点＋深掘り */
+var openIssues = rec.issues.filter(function(i){ return i.status !== "合意"; })
+  .sort(function(a,b){ return b.importance - a.importance; });
+$("cOpen").textContent = String(openIssues.length);
+
+listInto($("openList"), openIssues, function(iss){
+  var btn = DA.el("button.btn.btn-ghost.btn-sm.deep", { type:"button", text:"続きの討論をつくる" });
+  btn.addEventListener("click", function(){
+    $("deepTitle").textContent = "深掘りプロンプト — " + iss.label;
+    $("deepPrompt").textContent = DA.buildDeepDivePrompt(rec, iss);
+    $("deepBox").style.display = "block";
+    $("deepBox").scrollIntoView({ behavior:"smooth", block:"nearest" });
+  });
+  return DA.el("li", null, [
+    document.createTextNode(iss.label),
+    iss.unresolved ? DA.el("small", { text: iss.unresolved }) : null,
+    btn
+  ]);
+});
+DA.bindCopy($("copyDeep"), function(){ return $("deepPrompt").textContent; });
+
+/* ---------- ⑤ 想定問答集 ---------- */
+DA.renderQA($("qa"), rec);
+
+/* ---------- ⑥ 総括 ---------- */
+(function summary(){
+  var s = rec.summary, box = $("summary");
+  box.innerHTML = "";
+  box.appendChild(DA.el("div.rec-title", { text:"RECOMMENDATION" }));
+  box.appendChild(DA.el("p.rec-body", { text: s.recommendation || "（推奨案の記載がありません）" }));
+
+  var cols = DA.el("div.cols");
+  function col(title, kids){
+    if(!kids || !kids.length) return;
+    cols.appendChild(DA.el("div", null, [ DA.el("h4", { text:title }) ].concat(kids)));
+  }
+  function ul(items){
+    if(!items.length) return null;
+    return [ DA.el("ul", null, items.map(function(t){ return DA.el("li", { text:t }); })) ];
+  }
+  col("理由", ul(s.reasons));
+  col("トレードオフ", s.tradeoffs.length ? s.tradeoffs.map(function(t){
+    return DA.el("p.trade", null, [
+      DA.el("b", { text:"得る：" + t.gain }),
+      document.createTextNode(" ／ "),
+      DA.el("s", { text:"失う：" + t.loss })
+    ]);
+  }) : null);
+  col("見落とされていた視点", ul(s.blindspots));
+  col("次に考えるべき問い", ul(s.next_questions));
+  box.appendChild(cols);
+})();
+
+DA.boot("index");
+})();
+</script>
+</body>
+</html>
