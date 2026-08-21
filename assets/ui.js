@@ -6,6 +6,73 @@ var DA = window.DA = window.DA || {};
 DA.$  = function(id){ return document.getElementById(id); };
 DA.qs = function(sel, root){ return (root || document).querySelector(sel); };
 
+/* CSS 変数の実効値を読む（テーマ切り替えに追従させるため、描画時に毎回読む） */
+DA.cssVar = function(name, fallback){
+  var v = getComputedStyle(document.documentElement).getPropertyValue(name);
+  return (v || "").trim() || fallback || "#8A919C";
+};
+/* 席番号(1-4) → 現在のテーマでの色 */
+DA.seatHex = function(n){ return DA.cssVar("--c" + (((n-1)%4)+1)); };
+
+/* ---------- テーマ（自動 / ライト / ダーク の3状態） ----------
+   ちらつき防止のため、各ページの <head> で先に data-theme を当てている。
+   ここではその状態を引き継いで切り替えボタンを提供する。 */
+DA.theme = (function(){
+  var KEY = "debate-app:theme";
+  var STATES = [
+    { v:"",      ico:"◐", lbl:"自動"   },
+    { v:"dark",  ico:"☾", lbl:"ダーク" },
+    { v:"light", ico:"☀", lbl:"ライト" }
+  ];
+
+  function get(){
+    try{
+      var v = localStorage.getItem(KEY);
+      return (v === "dark" || v === "light") ? v : "";
+    }catch(e){ return ""; }
+  }
+  function resolved(){
+    var v = get();
+    if(v) return v;
+    return (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  }
+  function set(v){
+    try{
+      if(v) localStorage.setItem(KEY, v); else localStorage.removeItem(KEY);
+    }catch(e){}
+    if(v) document.documentElement.setAttribute("data-theme", v);
+    else  document.documentElement.removeAttribute("data-theme");
+    document.dispatchEvent(new CustomEvent("da:theme", { detail:{ mode:v, resolved:resolved() } }));
+  }
+  function next(){
+    var cur = get();
+    for(var i=0;i<STATES.length;i++){
+      if(STATES[i].v === cur){ set(STATES[(i+1) % STATES.length].v); return; }
+    }
+    set("dark");
+  }
+  function state(){
+    var cur = get();
+    for(var i=0;i<STATES.length;i++){ if(STATES[i].v === cur) return STATES[i]; }
+    return STATES[0];
+  }
+  /* 自動のときはシステム設定の変化に追従させる */
+  if(window.matchMedia){
+    var mq = matchMedia("(prefers-color-scheme: dark)");
+    var onChange = function(){
+      if(!get()) document.dispatchEvent(new CustomEvent("da:theme", { detail:{ mode:"", resolved:resolved() } }));
+    };
+    if(mq.addEventListener) mq.addEventListener("change", onChange);
+    else if(mq.addListener) mq.addListener(onChange);
+  }
+  return { get:get, set:set, next:next, state:state, resolved:resolved };
+})();
+
+/* テーマが変わったら呼ばれる（可視化の再描画用） */
+DA.onTheme = function(cb){
+  document.addEventListener("da:theme", function(e){ cb(e.detail); });
+};
+
 DA.esc = function(s){
   return String(s === null || s === undefined ? "" : s)
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
@@ -105,7 +172,23 @@ DA.mountNav = function(active){
     if(p.key === active) a.setAttribute("aria-current","page");
     links.appendChild(a);
   });
-  inner.appendChild(mark); inner.appendChild(links);
+
+  /* テーマ切り替え */
+  var ico = DA.el("span.ico"), lbl = DA.el("span.lbl");
+  var tbtn = DA.el("button.theme-btn", { type:"button" }, [ ico, lbl ]);
+  function paint(){
+    var s = DA.theme.state();
+    ico.textContent = s.ico;
+    lbl.textContent = s.lbl;
+    tbtn.title = "表示テーマ：" + s.lbl + "（クリックで切り替え）";
+    tbtn.setAttribute("aria-label", "表示テーマを切り替える。現在：" + s.lbl);
+  }
+  paint();
+  tbtn.addEventListener("click", function(){ DA.theme.next(); paint(); });
+  document.addEventListener("da:theme", paint);
+
+  var right = DA.el("div.nav-right", null, [ links, tbtn ]);
+  inner.appendChild(mark); inner.appendChild(right);
   nav.appendChild(inner);
   nav.appendChild(DA.el("div", { id:"bar" }));
   document.body.insertBefore(nav, document.body.firstChild);

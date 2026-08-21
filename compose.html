@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>討論をつくる — 討論卓</title>
 <link rel="stylesheet" href="assets/tokens.css">
+<script>/* テーマ先読み：本体スクリプトより先に data-theme を当ててちらつきを防ぐ */
+(function(){try{var t=localStorage.getItem("debate-app:theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
+</script>
 </head>
 <body>
 
@@ -31,28 +34,28 @@
     <line x1="140" y1="78" x2="520" y2="290"/><line x1="520" y1="78" x2="140" y2="290"/>
   </g>
   <g class="seat" id="g0">
-    <rect x="262" y="146" width="136" height="76" rx="12" fill="#EDEEF0" stroke="#14161B" stroke-width="1.4"/>
-    <text class="seat-tag" x="330" y="176" text-anchor="middle" fill="#14161B">CHAIR</text>
+    <rect class="seat-box b0" x="262" y="146" width="136" height="76" rx="12"/>
+    <text class="seat-tag t0" x="330" y="176" text-anchor="middle">CHAIR</text>
     <text class="seat-name" x="330" y="200" text-anchor="middle" font-size="16">司会</text>
   </g>
   <g class="seat" id="g1">
-    <rect x="30" y="44" width="220" height="68" rx="12" fill="#E4F6EE" stroke="#0E9F6E" stroke-width="1.4"/>
-    <text class="seat-tag" x="48" y="70" fill="#0E9F6E">SEAT 01</text>
+    <rect class="seat-box b1" x="30" y="44" width="220" height="68" rx="12"/>
+    <text class="seat-tag t1" x="48" y="70">SEAT 01</text>
     <text class="seat-name" id="s1" x="48" y="94">実行者</text>
   </g>
   <g class="seat" id="g2">
-    <rect x="410" y="44" width="220" height="68" rx="12" fill="#E8EEFE" stroke="#2563EB" stroke-width="1.4"/>
-    <text class="seat-tag" x="428" y="70" fill="#2563EB">SEAT 02</text>
+    <rect class="seat-box b2" x="410" y="44" width="220" height="68" rx="12"/>
+    <text class="seat-tag t2" x="428" y="70">SEAT 02</text>
     <text class="seat-name" id="s2" x="428" y="94">懐疑派</text>
   </g>
   <g class="seat" id="g3">
-    <rect x="30" y="256" width="220" height="68" rx="12" fill="#FCE7F1" stroke="#DB2777" stroke-width="1.4"/>
-    <text class="seat-tag" x="48" y="282" fill="#DB2777">SEAT 03</text>
+    <rect class="seat-box b3" x="30" y="256" width="220" height="68" rx="12"/>
+    <text class="seat-tag t3" x="48" y="282">SEAT 03</text>
     <text class="seat-name" id="s3" x="48" y="306">顧客の代弁者</text>
   </g>
   <g class="seat" id="g4">
-    <rect x="410" y="256" width="220" height="68" rx="12" fill="#F1E9FE" stroke="#7C3AED" stroke-width="1.4"/>
-    <text class="seat-tag" x="428" y="282" fill="#7C3AED">SEAT 04</text>
+    <rect class="seat-box b4" x="410" y="256" width="220" height="68" rx="12"/>
+    <text class="seat-tag t4" x="428" y="282">SEAT 04</text>
     <text class="seat-name" id="s4" x="428" y="306">長期視点</text>
   </g>
   <text class="cap" x="30" y="356">破線は「前提の破壊」ラウンドで発生する相互反論。各自が最低2名を名指しで攻撃します。</text>

@@ -21,10 +21,14 @@ function svgText(x, y, str, attrs){
   return t;
 }
 function hexA(hex, a){
-  var h = String(hex).replace("#","");
+  var h = String(hex).trim().replace("#","");
+  if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
   var r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  if(isNaN(r) || isNaN(g) || isNaN(b)) return String(hex);
   return "rgba(" + r + "," + g + "," + b + "," + a + ")";
 }
+/* テーマ変更に追従させるため、描画のたびに CSS 変数を読み直す */
+function tok(name, fb){ return DA.cssVar(name, fb); }
 function trunc(s, n){
   s = String(s || "");
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
@@ -95,7 +99,7 @@ DA.renderStanceMatrix = function(host, rec){
   [["賛成","賛",1],["反対","反",0],["条件付き","条",2],["中立","中",3]].forEach(function(p){
     var b = DA.el("b");
     var style = SIDE_STYLE[p[0]];
-    applyDotStyle(b, style, "#8A919C", 1);
+    applyDotStyle(b, style, tok("--ink-3"), 1);
     b.style.width = "16px"; b.style.height = "16px"; b.style.fontSize = "9px";
     b.textContent = p[1];
     b.style.display = "flex"; b.style.alignItems = "center"; b.style.justifyContent = "center";
@@ -109,20 +113,20 @@ function applyDotStyle(node, style, hex, strength){
   var a = 0.45 + (strength || 3) * 0.11;  // 0.56 〜 1.0
   if(style.fill){
     node.style.background = hexA(hex, a);
-    node.style.color = a >= 0.7 ? "#fff" : "#14161B";
+    node.style.color = a >= 0.7 ? tok("--on-accent") : tok("--ink");
     node.style.borderColor = "transparent";
   }else if(style.half){
-    node.style.background = "linear-gradient(90deg," + hexA(hex, a) + " 50%, #fff 50%)";
+    node.style.background = "linear-gradient(90deg," + hexA(hex, a) + " 50%," + tok("--card") + " 50%)";
     node.style.borderColor = hex;
-    node.style.color = "#14161B";
+    node.style.color = tok("--ink");
   }else if(style.soft){
-    node.style.background = "#F1F3F6";
-    node.style.color = "#8A919C";
+    node.style.background = tok("--soft-bg");
+    node.style.color = tok("--ink-3");
     node.style.borderColor = "transparent";
   }else{
-    node.style.background = "#fff";
+    node.style.background = tok("--card");
     node.style.borderColor = hex;
-    node.style.color = hex;
+    node.style.color = tok("--ink");
   }
 }
 
@@ -136,7 +140,7 @@ function stanceCell(rec, iss, seat){
     cell.appendChild(DA.el("span.mx-dot.none", { title:"この論点に触れていません" }));
     return cell;
   }
-  var hex = DA.SEAT_HEX[seat-1];
+  var hex = DA.seatHex(seat);
   var style = SIDE_STYLE[pos.side] || SIDE_STYLE["中立"];
   var dot = DA.el("button.mx-dot", {
     type:"button", "data-pop":"1",
@@ -197,7 +201,7 @@ DA.renderFlowDiagram = function(host, rec, filterIssue){
 
   /* 矢印マーカー */
   var defs = svgEl("defs");
-  [["arw","#C4CAD4"],["arw-a","#DC2626"]].forEach(function(p){
+  [["arw",tok("--line-strong")],["arw-a",tok("--danger")]].forEach(function(p){
     var mk = svgEl("marker", { id:p[0], viewBox:"0 0 10 10", refX:"9", refY:"5",
       markerWidth:"6", markerHeight:"6", orient:"auto-start-reverse" });
     mk.appendChild(svgEl("path", { d:"M0,0 L10,5 L0,10 z", fill:p[1], opacity: p[0]==="arw-a" ? ".6" : ".8" }));
@@ -209,10 +213,10 @@ DA.renderFlowDiagram = function(host, rec, filterIssue){
   for(var s2=1; s2<=4; s2++){
     var ly = TOP + (s2-1)*LANE_H;
     svg.appendChild(svgEl("rect", { x:0, y:ly, width:W, height:LANE_H-6, rx:8,
-      fill: s2 % 2 ? "#FAFBFC" : "#F6F7F9" }));
-    svg.appendChild(svgEl("rect", { x:0, y:ly, width:4, height:LANE_H-6, rx:2, fill:DA.SEAT_HEX[s2-1] }));
+      class: "fl-lane " + (s2 % 2 ? "a" : "b") }));
+    svg.appendChild(svgEl("rect", { x:0, y:ly, width:4, height:LANE_H-6, rx:2, fill:DA.seatHex(s2) }));
     var nm = svgText(14, ly + LANE_H/2 - 2, trunc(seatName(rec, s2), 7),
-      { class:"fl-lane-name", fill:DA.SEAT_HEX[s2-1] });
+      { class:"fl-lane-name", fill:DA.seatHex(s2) });
     svg.appendChild(nm);
   }
 
@@ -258,7 +262,7 @@ DA.renderFlowDiagram = function(host, rec, filterIssue){
   var SHAPE = { "反論":"diamond", "データ提示":"round", "譲歩":"soft", "転換":"diamond" };
   moves.forEach(function(m){
     var p = posOf[m.id];
-    var hex = DA.SEAT_HEX[m.seat-1];
+    var hex = DA.seatHex(m.seat);
     var g = svgEl("g", { class:"fl-node", "data-id":m.id, "data-issue":m.issue || "" });
 
     var shape = SHAPE[m.type] || "rect";
@@ -272,7 +276,7 @@ DA.renderFlowDiagram = function(host, rec, filterIssue){
     });
     g.appendChild(rect);
 
-    var tcol = soft ? hex : "#fff";
+    var tcol = soft ? hex : tok("--on-accent");
     var head = m.type + (m.label ? " 【" + m.label + "】" : "");
     g.appendChild(svgText(p.x + 10, p.y + 17, trunc(head, 12),
       { fill:tcol, "font-size":"10", "font-weight":"700", opacity:".85" }));
@@ -373,7 +377,7 @@ DA.renderQuadrant = function(host, cfg){
     if(cfg.zones.tl) svg.appendChild(svgText(L, T - 9, cfg.zones.tl,
       { class:"qd-zone", fill:cfg.accent, opacity:".8" }));
     if(cfg.zones.bl) svg.appendChild(svgText(L + 6, B - 7, cfg.zones.bl,
-      { class:"qd-zone", fill:"#8A919C" }));
+      { class:"qd-zone", fill:tok("--ink-3") }));
   }
   /* 軸 */
   ["低","中","高"].forEach(function(lab, i){
@@ -400,7 +404,7 @@ DA.renderQuadrant = function(host, cfg){
 
     var g2 = svgEl("g", { class:"qd-pt" });
     g2.appendChild(svgEl("circle", { cx:cx, cy:cy, r:12, fill:cfg.accent,
-      stroke:"#fff", "stroke-width":2 }));
+      stroke:tok("--card"), "stroke-width":2 }));
     g2.appendChild(svgText(cx, cy + 3.5, String(i+1), { "text-anchor":"middle" }));
     var ttl = svgEl("title"); ttl.textContent = it.text; g2.appendChild(ttl);
     g2.addEventListener("click", function(e){

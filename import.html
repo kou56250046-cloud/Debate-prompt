@@ -5,14 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>討論を取り込む — 討論卓</title>
 <link rel="stylesheet" href="assets/tokens.css">
+<script>/* テーマ先読み：本体スクリプトより先に data-theme を当ててちらつきを防ぐ */
+(function(){try{var t=localStorage.getItem("debate-app:theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
+</script>
 <style>
   .split{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:26px;align-items:start}
   @media (max-width:900px){ .split{grid-template-columns:1fr} }
   .modes{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-  .modes button{appearance:none;cursor:pointer;background:#fff;color:var(--ink-2);
+  .modes button{appearance:none;cursor:pointer;background:var(--card);color:var(--ink-2);
     border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-family:var(--sans);
     font-size:13px;transition:all .18s}
-  .modes button[aria-pressed="true"]{background:var(--c5);border-color:var(--c5);color:#fff;font-weight:700}
+  .modes button[aria-pressed="true"]{background:var(--c5);border-color:var(--c5);color:var(--on-c5);font-weight:700}
   .preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin-top:16px}
   .pv{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:center}
   .pv .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--ink-3);font-weight:700}

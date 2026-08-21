@@ -118,13 +118,8 @@ DA.ROUND_SETS = ROUND_SETS;
 DA.PLAN_NOTES = PLAN_NOTES;
 DA.TONES = TONES;
 
-/* 席番号(1-4) から CSS 変数名を返す */
+/* 席の色はテーマで変わるため CSS 変数を正とする（ui.js の DA.seatHex を使うこと） */
 DA.seatVar = function(n){ return "--c" + (((n-1)%4)+1); };
-DA.seatColor = function(n){
-  return getComputedStyle(document.documentElement).getPropertyValue(DA.seatVar(n)).trim() || "#8A919C";
-};
-DA.SEAT_HEX = ["#0E9F6E","#2563EB","#DB2777","#7C3AED"];
-DA.SEAT_SOFT = ["#E4F6EE","#E8EEFE","#FCE7F1","#F1E9FE"];
 
 /* カテゴリ名から定義を引く（記録の復元用） */
 DA.findCat = function(label){

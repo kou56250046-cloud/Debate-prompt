@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>討論の記録 — 討論卓</title>
 <link rel="stylesheet" href="assets/tokens.css">
+<script>/* テーマ先読み：本体スクリプトより先に data-theme を当ててちらつきを防ぐ */
+(function(){try{var t=localStorage.getItem("debate-app:theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
+</script>
 <style>
   .rec-head{padding:56px 0 0}
   .rec-head .meta{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--ink-3);
@@ -20,7 +23,7 @@
   .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .filterbar{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap}
   .filterbar select{font-family:var(--sans);font-size:13.5px;border:1px solid var(--line);
-    border-radius:9px;padding:7px 12px;background:#fff;color:var(--ink)}
+    border-radius:9px;padding:7px 12px;background:var(--card);color:var(--ink)}
   .deep{margin-top:8px}
   #deepBox{display:none}
 </style>
@@ -64,7 +67,7 @@
   </div>
 </header>
 
-<section id="m-matrix" class="tight">
+<section id="m-matrix" class="tight no-print">
   <div class="sec-head">
     <div>
       <div class="eyebrow e1">01 / Stance</div>
@@ -228,45 +231,51 @@ $("dlJson").addEventListener("click", function(){
   });
 })();
 
-/* ---------- ① マトリクス ---------- */
-DA.renderStanceMatrix($("matrix"), rec);
-
-/* ---------- ② フロー ---------- */
-(function flow(){
+/* ---------- ①②③ 可視化 ----------
+   色は CSS 変数から読むので、テーマが変わったら描き直す */
+(function flowFilterOptions(){
   var sel = $("flowFilter");
   sel.appendChild(DA.el("option", { value:"", text:"すべての論点" }));
   rec.issues.forEach(function(i){
     sel.appendChild(DA.el("option", { value:i.id, text:i.label }));
   });
-  DA.renderFlowDiagram($("flow"), rec);
   sel.addEventListener("change", function(){
     if($("flow").__applyFilter) $("flow").__applyFilter(sel.value);
   });
 })();
 
-/* ---------- ③ 2×2 ---------- */
-DA.renderQuadrant($("qRisk"), {
-  accent: "#DC2626",
-  xAxis: "起こりやすさ", yAxis: "影響",
-  zones: { tr:"最優先で潰す", tl:"備えだけ用意", bl:"様子見" },
-  aria: "リスクの分布",
-  emptyText: "リスクは記録されていません。",
-  items: rec.risks.map(function(r){
-    return { text:r.text, x:r.likelihood, y:r.impact, note: r.mitigation ? "対策：" + r.mitigation : "",
-             by: r.raised_by ? DA.seatName(rec, r.raised_by) : "" };
-  })
-});
-DA.renderQuadrant($("qIdea"), {
-  accent: "#7C3AED",
-  xAxis: "労力", yAxis: "効果",
-  zones: { tr:"大勝負", tl:"まずここから", bl:"余力があれば" },
-  aria: "アイデアの分布",
-  emptyText: "アイデアは記録されていません。",
-  items: rec.ideas.map(function(i){
-    return { text:i.text, x:i.effort, y:i.impact, note:"",
-             by: i.raised_by ? DA.seatName(rec, i.raised_by) : "" };
-  })
-});
+function paintCharts(){
+  DA.renderStanceMatrix($("matrix"), rec);
+
+  DA.renderFlowDiagram($("flow"), rec);
+  var f = $("flowFilter").value;
+  if(f && $("flow").__applyFilter) $("flow").__applyFilter(f);
+
+  DA.renderQuadrant($("qRisk"), {
+    accent: DA.cssVar("--danger"),
+    xAxis: "起こりやすさ", yAxis: "影響",
+    zones: { tr:"最優先で潰す", tl:"備えだけ用意", bl:"様子見" },
+    aria: "リスクの分布",
+    emptyText: "リスクは記録されていません。",
+    items: rec.risks.map(function(r){
+      return { text:r.text, x:r.likelihood, y:r.impact, note: r.mitigation ? "対策：" + r.mitigation : "",
+               by: r.raised_by ? DA.seatName(rec, r.raised_by) : "" };
+    })
+  });
+  DA.renderQuadrant($("qIdea"), {
+    accent: DA.cssVar("--c4"),
+    xAxis: "労力", yAxis: "効果",
+    zones: { tr:"大勝負", tl:"まずここから", bl:"余力があれば" },
+    aria: "アイデアの分布",
+    emptyText: "アイデアは記録されていません。",
+    items: rec.ideas.map(function(i){
+      return { text:i.text, x:i.effort, y:i.impact, note:"",
+               by: i.raised_by ? DA.seatName(rec, i.raised_by) : "" };
+    })
+  });
+}
+paintCharts();
+DA.onTheme(function(){ DA.popover.hide(); paintCharts(); });
 
 /* ---------- ④ リスト ---------- */
 function listInto(host, items, render){
