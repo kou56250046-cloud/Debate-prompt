@@ -1,0 +1,35 @@
+{
+  "name": "討論卓 — 討論の記録とダッシュボード",
+  "short_name": "討論卓",
+  "description": "議題ごとの論点・対立・積み残しを構造化して記録し、蓄積していくための討論ダッシュボード。",
+  "lang": "ja",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#7C3AED",
+  "background_color": "#FFFFFF",
+  "categories": ["productivity", "education", "utilities"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "新しい討論をつくる",
+      "short_name": "つくる",
+      "url": "./compose.html",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "討論を取り込む",
+      "short_name": "取り込む",
+      "url": "./import.html",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
