@@ -35,6 +35,27 @@
     border-radius:9px;padding:7px 12px;background:var(--card);color:var(--ink)}
   .deep{margin-top:8px}
   #deepBox{display:none}
+  .picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin-top:14px}
+  .pick{display:flex;gap:9px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);
+    border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .16s}
+  .pick:hover{border-color:var(--c4)}
+  .pick input{margin-top:3px;flex:0 0 auto}
+  .pick .lb{font-size:13.5px;line-height:1.5}
+  .pick .mt{display:block;font-size:11.5px;color:var(--ink-3);margin-top:3px;line-height:1.6}
+  .pick.done .lb{color:var(--ink-3)}
+  .nextbar{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:18px}
+  .nextbar .field{margin:0}
+  .nextbar select{font-family:var(--sans);font-size:13.5px;border:1px solid var(--line);
+    border-radius:9px;padding:8px 12px;background:var(--card);color:var(--ink)}
+  .tabs2{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .tabs2 button{appearance:none;cursor:pointer;background:var(--card);color:var(--ink-2);
+    border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-family:var(--sans);
+    font-size:13px;transition:all .18s}
+  .tabs2 button[aria-pressed="true"]{background:var(--c5);border-color:var(--c5);color:var(--on-c5);font-weight:700}
+  .sess{border-left:3px solid var(--c5);padding:2px 0 2px 14px;margin:14px 0}
+  .sess .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-3);font-weight:700}
+  .sess p{margin:4px 0 0;font-size:13.5px;line-height:1.75;color:var(--ink-2)}
+  #nextPaste{min-height:150px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -63,6 +84,7 @@
     <a href="#m-flow">議論フロー</a>
     <a href="#m-quad">リスク・アイデア</a>
     <a href="#m-lists">決定・タスク</a>
+    <a href="#m-next">続きを詰める</a>
     <a href="#m-qa">想定問答集</a>
     <a href="#m-sum">総括</a>
   </div>
@@ -134,22 +156,68 @@
       <div id="openList"></div>
     </div>
   </div>
-  <div class="card" id="deepBox">
-    <div class="card-bar">
-      <div class="t"><span id="deepTitle">深掘りプロンプト</span><small>DEEP DIVE — 2 ROUNDS</small></div>
-      <button class="btn btn-primary" id="copyDeep">コピー</button>
+</section>
+
+<section id="m-next" class="tight no-print">
+  <div class="eyebrow e5">05 / Continue</div>
+  <h2>まだ決まっていないことを、続けて詰める</h2>
+  <p class="sub">残った項目を選び、続きのプロンプトを出します。返ってきた議論を構造化して貼れば、<b>この記録に追記されます</b>（新しい記録は増えません）。</p>
+
+  <div id="sessBox"></div>
+
+  <h3 style="margin:26px 0 0;font-size:15px">① 今回詰める項目を選ぶ</h3>
+  <div class="picks" id="nextIssues"></div>
+
+  <div class="nextbar">
+    <div class="field">
+      <label for="nextKind">続きのやり方</label>
+      <select id="nextKind"></select>
     </div>
-    <div class="pre-wrap">
-      <pre id="deepPrompt" class="open"></pre>
-    </div>
-    <div class="card-foot">
-      <span class="hint">同じチャットに貼ると、この論点だけを2ラウンドで詰め直します。終わったら「取り込む」で新しい記録として保存できます。</span>
+    <div class="field">
+      <label for="nextRounds">ラウンド数</label>
+      <select id="nextRounds">
+        <option value="2" selected>2</option><option value="3">3</option><option value="4">4</option>
+      </select>
     </div>
   </div>
+  <div class="field" style="margin-top:12px">
+    <label for="nextExtra">今回の追加条件 <span>任意。会議で言われたこと・新しく分かった事実など</span></label>
+    <textarea id="nextExtra" rows="2" placeholder="例：予算は据え置きのまま、日程だけ動かせることが分かった"></textarea>
+  </div>
+
+  <h3 style="margin:26px 0 0;font-size:15px">② プロンプトを送る</h3>
+  <div class="tabs2" role="group" aria-label="プロンプトの種類">
+    <button type="button" id="np-run" aria-pressed="true">続きの議論をさせる</button>
+    <button type="button" id="np-struct" aria-pressed="false">結果を追記用 JSON にする</button>
+  </div>
+  <div class="card">
+    <div class="card-bar">
+      <div class="t"><span id="nextTitle">続きのプロンプト</span><small id="nextMeta"></small></div>
+      <button class="btn btn-primary" id="copyNext">コピー</button>
+    </div>
+    <div class="pre-wrap">
+      <pre id="nextPrompt"></pre>
+      <div class="veil"></div>
+    </div>
+    <div class="card-foot">
+      <button class="btn btn-ghost" id="toggleNext">全文を表示</button>
+      <span class="hint">①で議論させ、同じチャットに②を投げると追記用の JSON が返ります。</span>
+    </div>
+  </div>
+
+  <h3 style="margin:26px 0 0;font-size:15px">③ 返ってきた JSON を貼って追記する</h3>
+  <div class="field">
+    <textarea id="nextPaste" class="mono" rows="8" placeholder='{ "schema": "debate-followup/v1", ... }'></textarea>
+  </div>
+  <div class="toolbar" style="margin-top:10px">
+    <button class="btn btn-primary" id="applyNext">この記録に追加する</button>
+    <button class="btn btn-ghost" id="clearNext">貼り付けを消す</button>
+  </div>
+  <div id="nextResult"></div>
 </section>
 
 <section id="m-qa" class="tight">
-  <div class="eyebrow e5">05 / Q&amp;A</div>
+  <div class="eyebrow e3">06 / Q&amp;A</div>
   <h2>会議で出そうな意見と、その返し</h2>
   <p class="sub no-print">これが会議に持ち込む1枚です。印刷するとこのセクションだけが紙面に出ます。</p>
   <div class="print-only" id="printHead"></div>
@@ -157,7 +225,7 @@
 </section>
 
 <section id="m-sum" class="tight no-print">
-  <div class="eyebrow e1">06 / Verdict</div>
+  <div class="eyebrow e1">07 / Verdict</div>
   <h2>司会の総括</h2>
   <div class="summary-box" id="summary"></div>
 </section>
@@ -196,9 +264,11 @@ document.title = rec.meta.title + " — 討論卓";
 (function head(){
   var m = $("recMeta");
   m.appendChild(DA.el("span", { text: DA.fmtDate(rec.meta.date) }));
+  m.appendChild(DA.el("span", { text: DA.findMode(rec.meta.mode).tag }));
   if(rec.meta.category) m.appendChild(DA.el("span", { text: rec.meta.category }));
   m.appendChild(DA.el("span", { text: rec.meta.rounds + " ROUNDS" }));
   if(rec.meta.tone) m.appendChild(DA.el("span", { text: rec.meta.tone }));
+  if(rec._sessions.length) m.appendChild(DA.el("span", { text:"続き " + rec._sessions.length + " 回" }));
 
   $("recTitle").textContent = rec.meta.title;
   var topic = (rec._input && rec._input.topic) || "";
@@ -329,26 +399,187 @@ function renderTasks(){
 }
 renderTasks();
 
-/* 未解決の論点＋深掘り */
+/* 未解決の論点 */
 var openIssues = rec.issues.filter(function(i){ return i.status !== "合意"; })
   .sort(function(a,b){ return b.importance - a.importance; });
 $("cOpen").textContent = String(openIssues.length);
 
 listInto($("openList"), openIssues, function(iss){
-  var btn = DA.el("button.btn.btn-ghost.btn-sm.deep", { type:"button", text:"続きの討論をつくる" });
-  btn.addEventListener("click", function(){
-    $("deepTitle").textContent = "深掘りプロンプト — " + iss.label;
-    $("deepPrompt").textContent = DA.buildDeepDivePrompt(rec, iss);
-    $("deepBox").style.display = "block";
-    $("deepBox").scrollIntoView({ behavior:"smooth", block:"nearest" });
-  });
+  var btn = DA.el("button.btn.btn-ghost.btn-sm.deep", { type:"button", text:"この項目で続きをつくる" });
+  btn.addEventListener("click", function(){ pickOnly(iss.id); });
   return DA.el("li", null, [
     document.createTextNode(iss.label),
     iss.unresolved ? DA.el("small", { text: iss.unresolved }) : null,
+    iss.resolution ? DA.el("small", { text:"到達点：" + iss.resolution }) : null,
     btn
   ]);
 });
-DA.bindCopy($("copyDeep"), function(){ return $("deepPrompt").textContent; });
+
+/* ---------- ⑤ 続きの議論 ---------- */
+var picked = {};        // issueId → true
+var npMode = "run";     // run | struct
+
+/* 続きの履歴 */
+(function sessions(){
+  var box = $("sessBox");
+  box.innerHTML = "";
+  if(!rec._sessions.length) return;
+  rec._sessions.forEach(function(s){
+    var a = s.added || {};
+    var counts = [
+      a.issuesUpdated ? "論点更新 " + a.issuesUpdated : "",
+      a.issuesAdded ? "論点追加 " + a.issuesAdded : "",
+      a.moves ? "発言 " + a.moves : "",
+      a.ideas ? "アイデア " + a.ideas : "",
+      a.objections ? "想定問答 " + a.objections : "",
+      a.tasks ? "タスク " + a.tasks : ""
+    ].filter(Boolean).join("／");
+    box.appendChild(DA.el("div.sess", null, [
+      DA.el("div.k", { text:"続き #" + s.no + " ／ " + DA.fmtDate(s.date) + " ／ " + s.kindLabel +
+                             " ／ ROUND " + s.roundFrom + "〜" + (s.roundFrom + s.rounds - 1) }),
+      DA.el("p", { text: s.focus + (s.verdict ? " — " + s.verdict : "") }),
+      counts ? DA.el("p", { style:"color:var(--ink-3);font-size:12.5px", text:"追記：" + counts }) : null
+    ]));
+  });
+})();
+
+/* 対象の選択リスト（未解決を上に、合意済みも選べる） */
+(function pickers(){
+  var box = $("nextIssues");
+  var sorted = rec.issues.slice().sort(function(a,b){
+    var ao = a.status === "合意" ? 1 : 0, bo = b.status === "合意" ? 1 : 0;
+    return ao - bo || b.importance - a.importance;
+  });
+  sorted.forEach(function(iss){
+    var cb = DA.el("input", { type:"checkbox", value:iss.id });
+    cb.addEventListener("change", function(){
+      if(cb.checked) picked[iss.id] = true; else delete picked[iss.id];
+      refreshNext();
+    });
+    var note = [iss.status, "重要度" + iss.importance, iss.unresolved || iss.resolution || ""]
+      .filter(Boolean).join("／");
+    box.appendChild(DA.el("label.pick" + (iss.status === "合意" ? ".done" : ""), null, [
+      cb,
+      DA.el("span.lb", null, [
+        document.createTextNode(iss.label),
+        DA.el("small.mt", { text: note })
+      ])
+    ]));
+  });
+  /* 既定は未解決のうち重要度の高い上位2件 */
+  openIssues.slice(0,2).forEach(function(i){ picked[i.id] = true; });
+  syncChecks();
+})();
+
+function syncChecks(){
+  $("nextIssues").querySelectorAll("input[type=checkbox]").forEach(function(cb){
+    cb.checked = !!picked[cb.value];
+  });
+}
+function pickOnly(id){
+  picked = {};
+  picked[id] = true;
+  syncChecks();
+  refreshNext();
+  $("m-next").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+/* 続きのやり方 */
+(function fillKinds(){
+  var sel = $("nextKind");
+  var LABEL = { debate:"討論で詰める — 決着させる", ideate:"アイデアを出す — 打ち手を増やす",
+                deep:"掘り下げる — なぜ詰まるのかを解く" };
+  DA.MODES.forEach(function(m){
+    sel.appendChild(DA.el("option", { value:m.key, text: LABEL[m.key] || m.label }));
+  });
+  sel.value = rec.meta.mode || "debate";
+})();
+
+function pickedIssues(){
+  return rec.issues.filter(function(i){ return picked[i.id]; });
+}
+
+function nextOpts(){
+  return {
+    kind: $("nextKind").value,
+    rounds: parseInt($("nextRounds").value,10),
+    extra: ($("nextExtra").value || "").trim()
+  };
+}
+
+function nextText(){
+  var issues = pickedIssues();
+  if(!issues.length) return "（上で項目を1つ以上選んでください）";
+  var o = nextOpts();
+  return npMode === "struct"
+    ? DA.buildFollowupStructurePrompt(rec, issues, o)
+    : DA.buildFollowupPrompt(rec, issues, o);
+}
+
+function refreshNext(){
+  var issues = pickedIssues();
+  var o = nextOpts();
+  $("nextPrompt").textContent = nextText();
+  $("nextTitle").textContent = npMode === "struct" ? "追記用 JSON の構造化プロンプト" : "続きのプロンプト";
+  $("nextMeta").textContent = (npMode === "struct" ? "FOLLOWUP JSON" : DA.findMode(o.kind).tag) +
+    " / " + o.rounds + " ROUNDS / 項目 " + issues.length;
+}
+
+[["np-run","run"],["np-struct","struct"]].forEach(function(p){
+  $(p[0]).addEventListener("click", function(){
+    npMode = p[1];
+    ["np-run","np-struct"].forEach(function(id){
+      $(id).setAttribute("aria-pressed", id === p[0] ? "true" : "false");
+    });
+    refreshNext();
+  });
+});
+["nextKind","nextRounds","nextExtra"].forEach(function(id){
+  $(id).addEventListener("input", refreshNext);
+  $(id).addEventListener("change", refreshNext);
+});
+DA.bindCopy($("copyNext"), nextText);
+$("toggleNext").addEventListener("click", function(){
+  var open = $("nextPrompt").classList.toggle("open");
+  $("toggleNext").textContent = open ? "折りたたむ" : "全文を表示";
+});
+refreshNext();
+
+/* 追記 */
+$("clearNext").addEventListener("click", function(){
+  $("nextPaste").value = "";
+  $("nextResult").innerHTML = "";
+});
+$("applyNext").addEventListener("click", function(){
+  var obj, out;
+  try{
+    obj = DA.repairJson($("nextPaste").value);
+    out = DA.applyFollowup(rec, obj);
+  }catch(err){
+    DA.notice($("nextResult"), "err", "<b>追記できませんでした</b><br>" + DA.esc(err.message));
+    return;
+  }
+  try{
+    DA.store.save(out.rec);
+  }catch(err){
+    DA.notice($("nextResult"), "err", DA.esc(err.message));
+    return;
+  }
+  var r = out.report;
+  var parts = [
+    r.issuesUpdated ? "論点の更新 " + r.issuesUpdated : "",
+    r.issuesAdded ? "新しい論点 " + r.issuesAdded : "",
+    r.moves ? "発言 " + r.moves : "",
+    r.risks ? "リスク " + r.risks : "",
+    r.ideas ? "アイデア " + r.ideas : "",
+    r.decisions ? "決定 " + r.decisions : "",
+    r.tasks ? "タスク " + r.tasks : "",
+    r.objections ? "想定問答 " + r.objections : ""
+  ].filter(Boolean).join("／") || "（追加された項目はありませんでした）";
+  DA.notice($("nextResult"), "ok",
+    "<b>続き #" + out.session.no + " を追記しました。</b><br>" + DA.esc(parts) + "<br>画面を読み込み直します…");
+  setTimeout(function(){ location.reload(); }, 900);
+});
 
 /* ---------- ⑤ 想定問答集 ---------- */
 DA.renderQA($("qa"), rec);

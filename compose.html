@@ -17,16 +17,30 @@
 <script>/* テーマ先読み：本体スクリプトより先に data-theme を当ててちらつきを防ぐ */
 (function(){try{var t=localStorage.getItem("debate-app:theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
 </script>
+<style>
+  .modecards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+  @media (max-width:760px){ .modecards{grid-template-columns:1fr} }
+  .modecard{appearance:none;cursor:pointer;text-align:left;background:var(--card);color:var(--ink);
+    border:1px solid var(--line);border-radius:14px;padding:16px 16px 15px;transition:all .18s;font-family:var(--sans)}
+  .modecard:hover{border-color:var(--c4)}
+  .modecard[aria-pressed="true"]{border-color:var(--c5);box-shadow:0 0 0 1px var(--c5) inset}
+  .modecard .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--ink-3);font-weight:700}
+  .modecard[aria-pressed="true"] .k{color:var(--c5)}
+  .modecard h3{font-size:16px;margin:6px 0 4px}
+  .modecard .s{font-size:12.5px;color:var(--ink-3);margin:0 0 8px}
+  .modecard p{font-size:13px;line-height:1.75;color:var(--ink-2);margin:0}
+</style>
 </head>
 <body>
 
 <div class="wrap">
 
 <header class="reveal">
-  <div class="eyebrow e4">Step 01–03 / Compose</div>
-  <h1>議題をひとつ投げると、<br><em>4人の論者</em>が席につく。</h1>
-  <p class="lede">全員があなたの案を疑い、互いの前提を潰し合います。あなたは議論に参加しません。読むだけで、自分の考えの浅かった場所が見えます。</p>
+  <div class="eyebrow e4">Step 00–03 / Compose</div>
+  <h1>議題をひとつ投げると、<br><em>4人</em>が席につく。</h1>
+  <p class="lede">潰し合わせるか、案を出させるか、掘らせるか。目的に合わせて卓を選びます。あなたは議論に参加しません。読むだけで、自分の考えの浅かった場所が見えます。</p>
   <div class="chips">
+    <span class="chip">モード <b>3</b></span>
     <span class="chip">カテゴリ <b>14</b></span>
     <span class="chip">論者 <b>4</b></span>
     <span class="chip">司会 <b>1</b></span>
@@ -34,6 +48,13 @@
     <span class="chip">分量 <b>5,000字以上・上限なし</b></span>
   </div>
 </header>
+
+<section id="mode" class="reveal">
+  <div class="eyebrow e5">Step 00 / Mode</div>
+  <h2>何をさせるかを選ぶ</h2>
+  <p class="sub">同じ議題でも、卓の目的が変われば出てくるものが変わります。迷ったら討論です。</p>
+  <div class="modecards" id="modeCards" role="group" aria-label="モード"></div>
+</section>
 
 <div class="panel reveal" id="diagram">
 <svg viewBox="0 0 660 372" role="img" aria-label="4人の論者が司会を囲む配置図">
@@ -74,7 +95,7 @@
 <section id="cast" class="reveal">
   <div class="eyebrow e1">Step 01 / Cast</div>
   <h2>カテゴリを選ぶ</h2>
-  <p class="sub">仕事から日常、教会の活動まで14種類。選ぶと配置図・論者・プロンプトが同時に差し替わります。</p>
+  <p class="sub" id="castSub">仕事から日常、教会の活動まで14種類。選ぶと配置図・論者・プロンプトが同時に差し替わります。</p>
   <div id="tabGroups"></div>
   <div class="roles" id="roles"></div>
 </section>
@@ -191,11 +212,13 @@ var $ = DA.$;
 var CATS = DA.CATS, GROUPS = DA.GROUPS, ROUND_SETS = DA.ROUND_SETS, TONES = DA.TONES, PLAN_NOTES = DA.PLAN_NOTES;
 
 var current = 0;
+var mode = "debate";
 var F = { topic:$("f-topic"), goal:$("f-goal"), context:$("f-context"), limit:$("f-limit"),
           data:$("f-data"), tone:$("f-tone"), rounds:$("f-rounds") };
 
 function state(){
   return {
+    mode: mode,
     cat: CATS[current],
     rounds: parseInt(F.rounds.value,10),
     toneIdx: parseInt(F.tone.value,10),
@@ -204,8 +227,38 @@ function state(){
   };
 }
 
+/* ---------- モード ---------- */
+var modeBtns = {};
+(function renderModes(){
+  var box = $("modeCards");
+  DA.MODES.forEach(function(m){
+    var b = DA.el("button.modecard", { type:"button", "aria-pressed": m.key === mode ? "true" : "false" }, [
+      DA.el("div.k", { text:m.tag }),
+      DA.el("h3", { text:m.label }),
+      DA.el("p.s", { text:m.short }),
+      DA.el("p", { text:m.lede })
+    ]);
+    b.addEventListener("click", function(){ setMode(m.key, true); });
+    box.appendChild(b);
+    modeBtns[m.key] = b;
+  });
+})();
+
+function setMode(key, resetRounds){
+  mode = key;
+  var m = DA.findMode(key);
+  Object.keys(modeBtns).forEach(function(k){
+    modeBtns[k].setAttribute("aria-pressed", k === key ? "true" : "false");
+  });
+  if(resetRounds) F.rounds.value = String(m.defaultRounds);
+  $("castSub").textContent = m.roles
+    ? "このモードの4名は固定です。カテゴリは議題の領域としてプロンプトに渡り、話の焦点が変わります。"
+    : "仕事から日常、教会の活動まで14種類。選ぶと配置図・論者・プロンプトが同時に差し替わります。";
+  select(current);
+}
+
 function renderRoundCards(){
-  var set = ROUND_SETS[parseInt(F.rounds.value,10)];
+  var set = DA.roundsOf(mode, parseInt(F.rounds.value,10));
   var box = $("roundCards"); box.innerHTML = "";
   set.forEach(function(r,i){
     box.appendChild(DA.el("div.round", null, [
@@ -218,26 +271,29 @@ function renderRoundCards(){
 
 function renderPlans(){
   var cur = F.rounds.value;
+  var m = DA.findMode(mode);
   var box = $("plans"); box.innerHTML = "";
   [2,3,4,5].forEach(function(n){
     var seq = DA.el("div.seq");
-    ROUND_SETS[n].forEach(function(r,i){
+    DA.roundsOf(mode, n).forEach(function(r,i){
       if(i > 0) seq.appendChild(DA.el("i", { text:"→" }));
       seq.appendChild(document.createTextNode(r.name));
     });
     box.appendChild(DA.el("div.plan" + (String(n) === cur ? ".on" : ""), null, [
       DA.el("div.k", { text:n + " ROUNDS" }),
-      DA.el("div", null, [ seq, DA.el("p.when", { text:PLAN_NOTES[n] }) ])
+      DA.el("div", null, [ seq, DA.el("p.when", { text:m.notes[n] }) ])
     ]));
   });
 }
 
 function refresh(){
-  $("fullPrompt").textContent = DA.buildDebatePrompt(state());
-  $("cardTitle").textContent = CATS[current].label;
-  $("cardMeta").textContent = F.rounds.value + " ROUNDS / " + TONES[parseInt(F.tone.value,10)].label;
+  var m = DA.findMode(mode);
+  $("fullPrompt").textContent = DA.buildMainPrompt(state());
+  $("cardTitle").textContent = m.label + " ／ " + CATS[current].label;
+  $("cardMeta").textContent = m.tag + " / " + F.rounds.value + " ROUNDS / " + TONES[parseInt(F.tone.value,10)].label;
   renderRoundCards(); renderPlans();
   DA.store.saveDraft({
+    mode: mode,
     catLabel: CATS[current].label,
     rounds: parseInt(F.rounds.value,10),
     toneIdx: parseInt(F.tone.value,10),
@@ -264,12 +320,13 @@ GROUPS.forEach(function(g){
 function select(i){
   current = i;
   var cat = CATS[i];
+  var cast = DA.rolesOf(mode, cat);
   allTabs.forEach(function(b,j){ b.setAttribute("aria-selected", j === i ? "true" : "false"); });
 
   var seats = ["s1","s2","s3","s4"].map(function(id){ return $(id); });
   seats.forEach(function(el){ el.classList.add("fade","out"); });
   setTimeout(function(){
-    cat.roles.forEach(function(r,k){
+    cast.forEach(function(r,k){
       seats[k].textContent = r[0];
       seats[k].setAttribute("font-size", r[0].length > 9 ? "13" : (r[0].length > 7 ? "15" : "17"));
     });
@@ -277,7 +334,7 @@ function select(i){
   }, 160);
 
   var roles = $("roles"); roles.innerHTML = "";
-  cat.roles.forEach(function(r,k){
+  cast.forEach(function(r,k){
     roles.appendChild(DA.el("div.role", null, [
       DA.el("div.n", { text:"SEAT " + String(k+1).padStart(2,"0") }),
       DA.el("h3", { text:r[0] }),
@@ -292,7 +349,7 @@ Object.keys(F).forEach(function(k){
   F[k].addEventListener("change", refresh);
 });
 
-DA.bindCopy($("copyFull"), function(){ return DA.buildDebatePrompt(state()); });
+DA.bindCopy($("copyFull"), function(){ return DA.buildMainPrompt(state()); });
 
 $("toggleFull").addEventListener("click", function(){
   var open = $("fullPrompt").classList.toggle("open");
@@ -330,7 +387,8 @@ seatIO.observe($("diagram"));
   if(d && d.catLabel){
     for(var i=0;i<CATS.length;i++){ if(CATS[i].label === d.catLabel){ start = i; break; } }
   }
-  select(start);
+  current = start;
+  setMode((d && d.mode) || "debate", false);
 })();
 
 DA.boot("compose");

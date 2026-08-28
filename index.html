@@ -213,7 +213,9 @@ function render(){
   items.forEach(function(e){
     var meta = DA.el("div.meta", null, [
       DA.el("span", { text: DA.fmtDate(e.date) }),
-      e.category ? DA.el("span", { text: e.category }) : null
+      DA.el("span", { text: DA.findMode(e.mode).tag }),
+      e.category ? DA.el("span", { text: e.category }) : null,
+      e.sessions ? DA.el("span", { text:"続き" + e.sessions }) : null
     ]);
     var m = DA.el("div.m", null, [
       DA.el("span", null, [ DA.el("b", { text:String(e.issues || 0) }), document.createTextNode(" 論点") ]),

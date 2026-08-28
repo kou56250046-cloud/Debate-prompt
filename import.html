@@ -55,6 +55,10 @@
 
     <div class="form" style="margin-top:18px;gap:12px">
       <div class="field">
+        <label for="i-mode">モード <span>どの卓を回したか</span></label>
+        <select id="i-mode"></select>
+      </div>
+      <div class="field">
         <label for="i-cat">カテゴリ <span>討論で使ったもの</span></label>
         <select id="i-cat"></select>
       </div>
@@ -158,6 +162,14 @@ var mode = "full";
 var pending = null;          // 解析済みの生オブジェクト（PART 併合用）
 var editingId = DA.param("id") || "";
 
+/* ---------- モード select ---------- */
+(function fillModes(){
+  var sel = $("i-mode");
+  DA.MODES.forEach(function(m){
+    sel.appendChild(DA.el("option", { value:m.key, text:m.label + " — " + m.short }));
+  });
+})();
+
 /* ---------- カテゴリ select ---------- */
 (function fillCats(){
   var sel = $("i-cat");
@@ -174,6 +186,7 @@ var editingId = DA.param("id") || "";
 function state(){
   var cat = DA.findCat($("i-cat").value) || CATS[0];
   return {
+    mode: $("i-mode").value || "debate",
     cat: cat,
     rounds: parseInt($("i-rounds").value,10),
     toneIdx: parseInt($("i-tone").value,10),
@@ -184,14 +197,16 @@ function state(){
 function refreshPrompt(){
   var st = state();
   $("structPrompt").textContent = DA.buildStructurePrompt(st, mode);
+  $("pTitle").textContent = "構造化プロンプト（" + DA.findMode(st.mode).label + "）";
   $("pMeta").textContent = mode === "full" ? "FULL" : (mode === "p1" ? "PART 1 / 2" : "PART 2 / 2");
   DA.store.saveDraft({
+    mode: st.mode,
     catLabel: st.cat.label, rounds: st.rounds, toneIdx: st.toneIdx,
     input: Object.assign(DA.store.loadDraft().input || {}, { topic: st.input.topic })
   });
 }
 
-["i-cat","i-rounds","i-tone","i-topic"].forEach(function(id){
+["i-mode","i-cat","i-rounds","i-tone","i-topic"].forEach(function(id){
   $(id).addEventListener("input", refreshPrompt);
   $(id).addEventListener("change", refreshPrompt);
 });
@@ -243,6 +258,7 @@ $("parseBtn").addEventListener("click", function(){
 
   var st = state();
   var rec = DA.normalize(pending, {
+    mode: st.mode,
     category: st.cat.label,
     rounds: st.rounds,
     tone: (DA.TONES[st.toneIdx] || {}).label || "",
@@ -280,6 +296,7 @@ $("saveBtn").addEventListener("click", function(){
   if(!pending) return;
   var st = state();
   var rec = DA.normalize(pending, {
+    mode: st.mode,
     category: st.cat.label, rounds: st.rounds,
     tone: (DA.TONES[st.toneIdx] || {}).label || "",
     _input: Object.assign({ topic:"", goal:"", context:"", limit:"", data:"" },
@@ -302,6 +319,7 @@ $("saveBtn").addEventListener("click", function(){
 (function init(){
   var d = DA.store.loadDraft();
   if(d){
+    if(d.mode) $("i-mode").value = d.mode;
     if(d.catLabel) $("i-cat").value = d.catLabel;
     if(d.rounds) $("i-rounds").value = String(d.rounds);
     if(typeof d.toneIdx === "number") $("i-tone").value = String(d.toneIdx);
@@ -312,6 +330,7 @@ $("saveBtn").addEventListener("click", function(){
   if(editingId){
     var old = DA.store.get(editingId);
     if(old){
+      $("i-mode").value = old.meta.mode || "debate";
       $("i-cat").value = old.meta.category || $("i-cat").value;
       $("i-rounds").value = String(old.meta.rounds || 3);
       $("i-topic").value = (old._input && old._input.topic) || "";

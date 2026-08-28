@@ -126,9 +126,20 @@ DA.recordMarkdown = function(rec){
       out.push("- " + DA.seatName(rec, p.seat) + "（" + p.side + "／強さ" + p.strength + "）：" +
                line(p.claim) + (p.grounds ? "　根拠：" + line(p.grounds) : ""));
     });
+    if(i.resolution) out.push("- **到達点**：" + line(i.resolution));
     if(i.unresolved) out.push("- **未解決**：" + line(i.unresolved));
     out.push("");
   });
+
+  if((rec._sessions || []).length){
+    out.push("## 続きの議論");
+    rec._sessions.forEach(function(s){
+      out.push("- **続き#" + s.no + "**（" + s.date + "／" + s.kindLabel + "／ROUND " +
+               s.roundFrom + "〜" + (s.roundFrom + s.rounds - 1) + "）" + line(s.focus) +
+               (s.verdict ? "　到達点：" + line(s.verdict) : ""));
+    });
+    out.push("");
+  }
 
   if(rec.risks.length){
     out.push("## リスク");

@@ -45,11 +45,12 @@ var Store = DA.store = {
     var s = DA.stat(rec);
     return {
       id: rec._id, title: rec.meta.title, category: rec.meta.category,
+      mode: rec.meta.mode || "debate",
       date: rec.meta.date, tags: rec.meta.tags.slice(),
       topic: (rec._input && rec._input.topic) || "",
       updatedAt: rec._updatedAt,
       issues: s.issues, conflicts: s.conflicts, objections: s.objections,
-      tasksOpen: s.tasksOpen, tasksAll: s.tasksAll
+      tasksOpen: s.tasksOpen, tasksAll: s.tasksAll, sessions: s.sessions
     };
   },
 
@@ -117,8 +118,14 @@ var Store = DA.store = {
   /* ---------- compose の下書き（import へ引き継ぐ） ---------- */
   saveDraft: function(d){ try{ write(K_DRAFT, d); }catch(e){} },
   loadDraft: function(){
-    return read(K_DRAFT, { catLabel:"", rounds:3, toneIdx:2,
-      input:{ topic:"", goal:"", context:"", limit:"", data:"" } });
+    var d = read(K_DRAFT, null) || {};
+    return {
+      mode: d.mode || "debate",
+      catLabel: d.catLabel || "",
+      rounds: d.rounds || 3,
+      toneIdx: typeof d.toneIdx === "number" ? d.toneIdx : 2,
+      input: d.input || { topic:"", goal:"", context:"", limit:"", data:"" }
+    };
   },
 
   /* ---------- フラグ（初回案内など） ---------- */
