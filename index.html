@@ -25,7 +25,48 @@
   .tagcloud button[aria-pressed="true"]{background:var(--c4);color:var(--on-accent);font-weight:700}
   .backup{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
   #importFile{display:none}
-  .count{font-size:13px;color:var(--ink-3);margin-top:14px}
+  .count{font-size:13px;color:var(--ink-3);margin-top:14px;display:flex;
+    justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+
+  /* ビュー切替：記録 / 未完タスク / 未解決論点 */
+  .views{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;
+    overflow-x:auto;scrollbar-width:none}
+  .views::-webkit-scrollbar{display:none}
+  .viewtab{appearance:none;cursor:pointer;background:none;color:var(--ink-3);border:0;
+    border-bottom:2px solid transparent;margin-bottom:-1px;padding:10px 15px 9px;
+    font-family:var(--sans);font-size:14px;white-space:nowrap;transition:all .18s;
+    display:flex;align-items:baseline;gap:7px}
+  .viewtab:hover{color:var(--c4)}
+  .viewtab b{font-family:var(--mono);font-size:11px;font-weight:700}
+  .viewtab[aria-selected="true"]{color:var(--c5);border-bottom-color:var(--c5);font-weight:700}
+  .viewtab:focus-visible{outline:2px solid var(--c2);outline-offset:-3px}
+
+  .groupbox{margin-bottom:18px}
+  .grouphead{appearance:none;cursor:pointer;width:100%;text-align:left;background:var(--surface);
+    color:var(--ink);border:1px solid var(--line);border-radius:11px;padding:11px 14px;
+    font-family:var(--sans);font-size:14px;display:flex;align-items:center;gap:10px}
+  .grouphead:hover{border-color:var(--c4)}
+  .grouphead .n{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .grouphead .c{font-family:var(--mono);font-size:11px;color:var(--ink-3);flex:none}
+  .grouphead .a{color:var(--ink-3);flex:none;transition:transform .18s}
+  .groupbox[data-open="false"] .grouphead .a{transform:rotate(-90deg)}
+  .groupbody{margin-top:10px}
+  .groupbox[data-open="false"] .groupbody{display:none}
+
+  /* 横断一覧（タスク・未解決論点） */
+  .xlist{display:flex;flex-direction:column;gap:9px}
+  .xrow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    display:flex;gap:12px;align-items:flex-start}
+  .xrow.done .t{opacity:.45;text-decoration:line-through}
+  .xrow input[type=checkbox]{margin-top:3px;flex:none;width:16px;height:16px;accent-color:var(--c5)}
+  .xrow .b{flex:1;min-width:0}
+  .xrow .t{font-size:14px;line-height:1.7}
+  .xrow .s{font-size:12px;color:var(--ink-3);margin-top:5px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .xrow .s a{color:var(--c4);text-decoration:none;border-bottom:1px solid transparent}
+  .xrow .s a:hover{border-bottom-color:var(--c4)}
+  .xrow .im{font-family:var(--mono);font-size:10.5px;font-weight:700;flex:none;
+    padding:3px 8px;border-radius:5px;background:var(--c5s);color:var(--ink-2)}
+  .xrow .im.hi{background:var(--danger-s);color:var(--danger)}
 </style>
 </head>
 <body>
@@ -49,9 +90,16 @@
 </section>
 
 <section class="tight reveal">
+  <div class="views" role="tablist" aria-label="表示">
+    <button class="viewtab" type="button" id="v-rec" role="tab" aria-selected="true">記録 <b id="nRec"></b></button>
+    <button class="viewtab" type="button" id="v-task" role="tab" aria-selected="false">未完タスク <b id="nTask"></b></button>
+    <button class="viewtab" type="button" id="v-issue" role="tab" aria-selected="false">未解決の論点 <b id="nIssue"></b></button>
+  </div>
+
   <div class="toolbar">
     <div class="grow"><input type="search" id="q" placeholder="タイトル・議題・論点・想定問答を検索"></div>
-    <div style="flex:0 0 200px"><select id="fCat"><option value="">すべてのカテゴリ</option></select></div>
+    <div style="flex:0 0 150px"><select id="fMode"><option value="">すべてのモード</option></select></div>
+    <div style="flex:0 0 180px"><select id="fCat"><option value="">すべてのカテゴリ</option></select></div>
     <div style="flex:0 0 170px"><select id="fSort">
       <option value="date">新しい順</option>
       <option value="conflict">対立の多い順</option>
@@ -60,7 +108,13 @@
     </select></div>
   </div>
   <div class="tagcloud" id="tagCloud"></div>
-  <p class="count" id="count"></p>
+  <p class="count">
+    <span id="count"></span>
+    <label id="groupToggle" style="display:flex;align-items:center;gap:7px;cursor:pointer">
+      <input type="checkbox" id="fGroup" style="width:15px;height:15px;accent-color:var(--c5)">
+      議題ごとにまとめる
+    </label>
+  </p>
   <div id="list"></div>
 </section>
 
@@ -95,6 +149,8 @@
 var DA = window.DA, $ = DA.$;
 
 var activeTag = "";
+var view = "rec";            // rec | task | issue
+var openGroups = {};         // 議題グループの開閉
 
 function catColor(label){
   var i = 0;
@@ -171,9 +227,11 @@ function render(){
   var q = ($("q").value || "").trim().toLowerCase();
   var cat = $("fCat").value;
   var sort = $("fSort").value;
+  var md = $("fMode").value;
 
   var items = all.filter(function(e){
     if(cat && e.category !== cat) return false;
+    if(md && (e.mode || "debate") !== md) return false;
     if(activeTag && (e.tags || []).indexOf(activeTag) < 0) return false;
     return matches(e, q);
   });
@@ -186,8 +244,17 @@ function render(){
   $("count").textContent = all.length
     ? (items.length === all.length ? all.length + " 件" : items.length + " / " + all.length + " 件")
     : "";
+  $("nRec").textContent = items.length ? String(items.length) : "";
+  $("nTask").textContent = countTasks(items) || "";
+  $("nIssue").textContent = countIssues(items) || "";
+  $("groupToggle").style.display = view === "rec" ? "flex" : "none";
 
   var host = $("list"); host.innerHTML = "";
+
+  if(all.length && view !== "rec"){
+    (view === "task" ? renderTaskView : renderIssueView)(host, items);
+    return;
+  }
 
   if(!all.length){
     host.appendChild(DA.el("div.empty", null, [
@@ -209,32 +276,165 @@ function render(){
     return;
   }
 
-  var grid = DA.el("div.reclist");
-  items.forEach(function(e){
-    var meta = DA.el("div.meta", null, [
-      DA.el("span", { text: DA.fmtDate(e.date) }),
-      DA.el("span", { text: DA.findMode(e.mode).tag }),
-      e.category ? DA.el("span", { text: e.category }) : null,
-      e.sessions ? DA.el("span", { text:"続き" + e.sessions }) : null
-    ]);
-    var m = DA.el("div.m", null, [
-      DA.el("span", null, [ DA.el("b", { text:String(e.issues || 0) }), document.createTextNode(" 論点") ]),
-      DA.el("span", null, [ DA.el("b", { text:String(e.conflicts || 0) }), document.createTextNode(" 対立") ]),
-      DA.el("span", null, [ DA.el("b", { text:String(e.objections || 0) }), document.createTextNode(" 想定問答") ]),
-      (e.tasksAll ? DA.el("span", null, [
-        DA.el("b", { text: e.tasksOpen + "/" + e.tasksAll }), document.createTextNode(" タスク")
-      ]) : null)
-    ]);
-    var tags = DA.el("div.tagrow");
-    (e.tags || []).forEach(function(t){ tags.appendChild(DA.el("span.tag", { text:t })); });
+  if($("fGroup").checked) renderGrouped(host, items);
+  else host.appendChild(recGrid(items));
+}
 
-    var card = DA.el("a.rec", { href:"record.html?id=" + encodeURIComponent(e.id) }, [
-      meta, DA.el("h3", { text:e.title }), m, tags
-    ]);
-    card.style.borderLeftColor = catColor(e.category);
-    grid.appendChild(card);
+/* ---------- 記録カード ---------- */
+function recCard(e){
+  var meta = DA.el("div.meta", null, [
+    DA.el("span", { text: DA.fmtDate(e.date) }),
+    DA.el("span", { text: DA.findMode(e.mode).tag }),
+    e.category ? DA.el("span", { text: e.category }) : null,
+    e.sessions ? DA.el("span", { text:"続き" + e.sessions }) : null
+  ]);
+  var m = DA.el("div.m", null, [
+    DA.el("span", null, [ DA.el("b", { text:String(e.issues || 0) }), document.createTextNode(" 論点") ]),
+    DA.el("span", null, [ DA.el("b", { text:String(e.conflicts || 0) }), document.createTextNode(" 対立") ]),
+    DA.el("span", null, [ DA.el("b", { text:String(e.objections || 0) }), document.createTextNode(" 想定問答") ]),
+    (e.tasksAll ? DA.el("span", null, [
+      DA.el("b", { text: e.tasksOpen + "/" + e.tasksAll }), document.createTextNode(" タスク")
+    ]) : null)
+  ]);
+  var tags = DA.el("div.tagrow");
+  (e.tags || []).forEach(function(t){ tags.appendChild(DA.el("span.tag", { text:t })); });
+
+  var card = DA.el("a.rec", { href:"record.html?id=" + encodeURIComponent(e.id) }, [
+    meta, DA.el("h3", { text:e.title }), m, tags
+  ]);
+  card.style.borderLeftColor = catColor(e.category);
+  return card;
+}
+function recGrid(items){
+  var grid = DA.el("div.reclist");
+  items.forEach(function(e){ grid.appendChild(recCard(e)); });
+  return grid;
+}
+
+/* ---------- 議題ごとのまとめ ---------- */
+/* 同じ議題を何度も回したものを1つにたたむ。議題が空ならタイトルで寄せる */
+function topicKey(e){
+  var s = (e.topic || e.title || "").replace(/[\s　、。・,.「」『』（）()【】\-—…!?！？]/g, "");
+  return s.slice(0, 40).toLowerCase() || ("__" + e.id);
+}
+function renderGrouped(host, items){
+  var order = [], map = {};
+  items.forEach(function(e){
+    var k = topicKey(e);
+    if(!map[k]){ map[k] = []; order.push(k); }
+    map[k].push(e);
   });
-  host.appendChild(grid);
+  order.forEach(function(k){
+    var g = map[k];
+    if(g.length === 1){ host.appendChild(recGrid(g)); return; }
+
+    var open = openGroups[k] !== false;
+    var box = DA.el("div.groupbox", { "data-open": open ? "true" : "false" });
+    var head = DA.el("button.grouphead", { type:"button", "aria-expanded": open ? "true" : "false" }, [
+      DA.el("span.a", { text:"▾" }),
+      DA.el("span.n", { text: g[0].topic || g[0].title }),
+      DA.el("span.c", { text: g.length + " 回 / 未完 " +
+        g.reduce(function(s,e){ return s + (e.tasksOpen || 0); }, 0) })
+    ]);
+    head.addEventListener("click", function(){
+      openGroups[k] = box.getAttribute("data-open") === "false";
+      box.setAttribute("data-open", openGroups[k] ? "true" : "false");
+      head.setAttribute("aria-expanded", openGroups[k] ? "true" : "false");
+    });
+    box.appendChild(head);
+    box.appendChild(DA.el("div.groupbody", null, [ recGrid(g) ]));
+    host.appendChild(box);
+  });
+}
+
+/* ---------- 横断ビュー：未完タスク ---------- */
+function eachRecord(items, fn){
+  items.forEach(function(e){
+    var rec = DA.store.get(e.id);
+    if(rec) fn(rec, e);
+  });
+}
+function countTasks(items){
+  var n = 0;
+  items.forEach(function(e){ n += e.tasksOpen || 0; });
+  return n;
+}
+function countIssues(items){
+  var n = 0;
+  items.forEach(function(e){ n += e.conflicts || 0; });
+  return n;
+}
+
+function renderTaskView(host, items){
+  var rows = [];
+  eachRecord(items, function(rec, e){
+    rec.tasks.forEach(function(t, i){
+      if(!t.done) rows.push({ rec:rec, e:e, t:t, i:i });
+    });
+  });
+  if(!rows.length){
+    host.appendChild(DA.el("div.empty", null, [
+      DA.el("p", { text:"未完のタスクはありません。" }) ]));
+    return;
+  }
+  var list = DA.el("div.xlist");
+  rows.forEach(function(r){
+    var cb = DA.el("input", { type:"checkbox", "aria-label":"完了にする" });
+    var row = DA.el("div.xrow");
+    cb.addEventListener("change", function(){
+      r.rec.tasks[r.i].done = cb.checked;
+      try{ DA.store.save(r.rec); }catch(err){ alert(err.message); return; }
+      row.classList.toggle("done", cb.checked);
+      setTimeout(render, 350);
+    });
+    var sub = [ r.t.owner ? "担当：" + r.t.owner : "", r.t.due ? "期限：" + r.t.due : "",
+                r.t.blocked_by ? "待ち：" + r.t.blocked_by : "" ].filter(Boolean).join("　");
+    row.appendChild(cb);
+    row.appendChild(DA.el("div.b", null, [
+      DA.el("div.t", { text:r.t.text }),
+      DA.el("div.s", null, [
+        DA.el("a", { href:"record.html?id=" + encodeURIComponent(r.e.id), text:r.e.title }),
+        DA.el("span", { text: DA.findMode(r.e.mode).tag }),
+        DA.el("span", { text: DA.fmtDate(r.e.date) }),
+        sub ? DA.el("span", { text:sub }) : null
+      ])
+    ]));
+    list.appendChild(row);
+  });
+  host.appendChild(list);
+}
+
+/* ---------- 横断ビュー：未解決の論点 ---------- */
+function renderIssueView(host, items){
+  var rows = [];
+  eachRecord(items, function(rec, e){
+    rec.issues.forEach(function(iss){
+      if(iss.status !== "合意") rows.push({ e:e, iss:iss });
+    });
+  });
+  rows.sort(function(a,b){ return b.iss.importance - a.iss.importance; });
+  if(!rows.length){
+    host.appendChild(DA.el("div.empty", null, [
+      DA.el("p", { text:"未解決の論点はありません。" }) ]));
+    return;
+  }
+  var list = DA.el("div.xlist");
+  rows.forEach(function(r){
+    var url = "record.html?id=" + encodeURIComponent(r.e.id) + "&issue=" + encodeURIComponent(r.iss.id);
+    list.appendChild(DA.el("div.xrow", null, [
+      DA.el("span.im" + (r.iss.importance >= 4 ? ".hi" : ""), { text:"重要 " + r.iss.importance }),
+      DA.el("div.b", null, [
+        DA.el("div.t", { text:r.iss.label + (r.iss.unresolved ? " — " + r.iss.unresolved : "") }),
+        DA.el("div.s", null, [
+          DA.el("span.badge" + (r.iss.status === "対立" ? ".b-conflict" : ".b-hold"), { text:r.iss.status }),
+          DA.el("a", { href:"record.html?id=" + encodeURIComponent(r.e.id), text:r.e.title }),
+          DA.el("span", { text: DA.findMode(r.e.mode).tag }),
+          DA.el("a", { href:url, text:"この項目で続きをつくる →" })
+        ])
+      ])
+    ]));
+  });
+  host.appendChild(list);
 }
 
 /* ---------- サンプル ---------- */
@@ -289,9 +489,37 @@ $("importFile").addEventListener("change", function(){
     sel.appendChild(og);
   });
 
-  ["q","fCat","fSort"].forEach(function(id){
+  /* モードのフィルタ。目的グループごとにまとめる */
+  var msel = $("fMode");
+  DA.MODE_GROUPS.forEach(function(g){
+    var og = document.createElement("optgroup");
+    og.label = g.name;
+    DA.modesOfGroup(g.key).forEach(function(m){
+      og.appendChild(DA.el("option", { value:m.key, text:m.label }));
+    });
+    msel.appendChild(og);
+  });
+
+  ["q","fMode","fCat","fSort","fGroup"].forEach(function(id){
     $(id).addEventListener("input", render);
     $(id).addEventListener("change", render);
+  });
+
+  /* 表示の切り替え（記録／未完タスク／未解決の論点） */
+  [["v-rec","rec"],["v-task","task"],["v-issue","issue"]].forEach(function(p){
+    $(p[0]).addEventListener("click", function(){
+      view = p[1];
+      ["v-rec","v-task","v-issue"].forEach(function(id){
+        $(id).setAttribute("aria-selected", id === p[0] ? "true" : "false");
+      });
+      render();
+    });
+  });
+
+  /* まとめ表示の設定は端末に残す */
+  $("fGroup").checked = !!DA.store.flag("groupByTopic");
+  $("fGroup").addEventListener("change", function(){
+    DA.store.flag("groupByTopic", $("fGroup").checked);
   });
 
   render();

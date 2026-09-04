@@ -617,6 +617,14 @@ DA.renderQA($("qa"), rec);
   box.appendChild(cols);
 })();
 
+/* ダッシュボードの未解決一覧から ?issue=I1 で直接この項目を開く */
+(function openFromQuery(){
+  var q = DA.param("issue");
+  if(!q) return;
+  var hit = rec.issues.some(function(i){ return i.id === q; });
+  if(hit) setTimeout(function(){ pickOnly(q); }, 200);
+})();
+
 DA.boot("index");
 })();
 </script>

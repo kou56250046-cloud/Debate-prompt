@@ -18,20 +18,42 @@
 (function(){try{var t=localStorage.getItem("debate-app:theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
 </script>
 <style>
-  /* モードタブ：下線タブ。選択中のモードの中身は直下のパネルに出る */
-  .modetabs{display:flex;gap:4px;margin-top:18px;border-bottom:1px solid var(--line);
-    overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .modetabs::-webkit-scrollbar{display:none}
-  .modetab{appearance:none;cursor:pointer;background:none;color:var(--ink-3);border:0;
-    border-bottom:2px solid transparent;margin-bottom:-1px;padding:11px 16px 10px;
-    font-family:var(--sans);font-size:14.5px;white-space:nowrap;transition:all .18s;
-    display:flex;align-items:baseline;gap:8px}
-  .modetab:hover{color:var(--c4)}
-  .modetab .k{font-family:var(--mono);font-size:9px;letter-spacing:.12em;font-weight:700;opacity:.65}
-  .modetab[aria-selected="true"]{color:var(--c5);border-bottom-color:var(--c5);font-weight:700}
-  .modetab[aria-selected="true"] .k{opacity:1}
-  .modetab:focus-visible{outline:2px solid var(--c2);outline-offset:-4px}
-  @media (max-width:520px){ .modetab{padding:10px 12px 9px;font-size:13.5px} .modetab .k{display:none} }
+  /* モード選択：まず目的（決める／広げる／確かめる）、次にモード */
+  .modegroups{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px}
+  .modegroup{appearance:none;cursor:pointer;text-align:left;background:var(--card);color:var(--ink-2);
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px 11px;
+    font-family:var(--sans);transition:all .18s}
+  .modegroup:hover{border-color:var(--c4)}
+  .modegroup b{display:block;font-size:15px;color:var(--ink);margin-bottom:3px}
+  .modegroup span{font-size:11.5px;line-height:1.6;color:var(--ink-3);display:block}
+  .modegroup[aria-selected="true"]{background:var(--c5);border-color:var(--c5)}
+  .modegroup[aria-selected="true"] b,
+  .modegroup[aria-selected="true"] span{color:var(--on-c5)}
+  .modegroup[aria-selected="true"] span{opacity:.82}
+  .modegroup:focus-visible{outline:2px solid var(--c2);outline-offset:2px}
+  @media (max-width:640px){ .modegroups{grid-template-columns:1fr} .modegroup span{display:inline} }
+
+  .modelist{display:flex;flex-direction:column;gap:0;margin-top:12px;
+    border:1px solid var(--line);border-radius:14px 14px 0 0;overflow:hidden}
+  .modeopt{appearance:none;cursor:pointer;text-align:left;background:var(--card);color:var(--ink);
+    border:0;border-bottom:1px solid var(--line);padding:13px 16px;
+    font-family:var(--sans);display:flex;align-items:baseline;gap:12px;transition:background .16s}
+  .modeopt:hover{background:var(--surface)}
+  .modeopt .dot{flex:none;width:13px;height:13px;border-radius:50%;border:2px solid var(--line);
+    align-self:center;transition:all .16s}
+  .modeopt .nm{font-size:15px;font-weight:700;flex:none}
+  .modeopt .ds{font-size:12.5px;color:var(--ink-3);line-height:1.6}
+  .modeopt .k{margin-left:auto;flex:none;font-family:var(--mono);font-size:9px;
+    letter-spacing:.12em;color:var(--ink-3);font-weight:700;align-self:center}
+  .modeopt[aria-checked="true"]{background:var(--c5s)}
+  .modeopt[aria-checked="true"] .dot{border-color:var(--c5);box-shadow:inset 0 0 0 3px var(--c5)}
+  .modeopt[aria-checked="true"] .nm{color:var(--c5)}
+  .modeopt:focus-visible{outline:2px solid var(--c2);outline-offset:-3px}
+  @media (max-width:640px){
+    .modeopt{flex-wrap:wrap;gap:6px 10px}
+    .modeopt .ds{width:100%;padding-left:25px}
+    .modeopt .k{display:none}
+  }
 
   .modepanel{background:var(--card);border:1px solid var(--line);border-top:0;
     border-radius:0 0 14px 14px;padding:18px 20px 17px;
@@ -80,9 +102,10 @@
 <section id="mode" class="reveal">
   <div class="eyebrow e5">Step 00 / Mode</div>
   <h2>何をさせるかを選ぶ</h2>
-  <p class="sub">同じ議題でも、卓の目的が変われば出てくるものが変わります。迷ったら討論です。</p>
-  <div class="modetabs" id="modeTabs" role="tablist" aria-label="モード"></div>
-  <div class="modepanel" id="modePanel" role="tabpanel"></div>
+  <p class="sub">まず目的を選び、その中から卓を選びます。同じ議題でも、卓が変われば出てくるものが変わります。迷ったら「決める → 討論」です。</p>
+  <div class="modegroups" id="modeGroups" role="tablist" aria-label="目的"></div>
+  <div class="modelist" id="modeList" role="radiogroup" aria-label="モード"></div>
+  <div class="modepanel" id="modePanel"></div>
 </section>
 
 <div class="panel reveal" id="diagram">
@@ -317,32 +340,78 @@ $("seatReset").addEventListener("click", function(){
   select(current);
 });
 
-/* ---------- モードタブ ---------- */
+/* ---------- モード選択（目的 → モードの2段） ---------- */
+var groupKey = DA.groupOfMode(mode).key;
+var groupBtns = {};
 var modeBtns = {};
-(function renderModes(){
-  var box = $("modeTabs");
-  DA.MODES.forEach(function(m, i){
-    var b = DA.el("button.modetab", {
-      type:"button", role:"tab", id:"modetab-" + m.key,
-      "aria-selected": m.key === mode ? "true" : "false",
-      tabindex: m.key === mode ? "0" : "-1"
+
+(function renderGroups(){
+  var box = $("modeGroups");
+  DA.MODE_GROUPS.forEach(function(g, i){
+    var b = DA.el("button.modegroup", {
+      type:"button", role:"tab", id:"modegroup-" + g.key,
+      "aria-selected": g.key === groupKey ? "true" : "false",
+      tabindex: g.key === groupKey ? "0" : "-1"
     }, [
-      DA.el("span.k", { text:m.tag }),
-      DA.el("span", { text:m.label })
+      DA.el("b", { text:g.name }),
+      DA.el("span", { text:g.note })
     ]);
-    b.addEventListener("click", function(){ setMode(m.key, true); });
+    b.addEventListener("click", function(){ setGroup(g.key); });
     b.addEventListener("keydown", function(e){
       var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
       if(!d) return;
       e.preventDefault();
-      var next = DA.MODES[(i + d + DA.MODES.length) % DA.MODES.length];
+      var next = DA.MODE_GROUPS[(i + d + DA.MODE_GROUPS.length) % DA.MODE_GROUPS.length];
+      setGroup(next.key);
+      groupBtns[next.key].focus();
+    });
+    box.appendChild(b);
+    groupBtns[g.key] = b;
+  });
+})();
+
+/* 選んだ目的の中のモードを並べる */
+function renderModeList(){
+  var box = $("modeList");
+  var list = DA.modesOfGroup(groupKey);
+  box.innerHTML = "";
+  modeBtns = {};
+  list.forEach(function(m, i){
+    var b = DA.el("button.modeopt", {
+      type:"button", role:"radio", id:"modeopt-" + m.key,
+      "aria-checked": m.key === mode ? "true" : "false",
+      tabindex: m.key === mode ? "0" : "-1"
+    }, [
+      DA.el("span.dot"),
+      DA.el("span.nm", { text:m.label }),
+      DA.el("span.ds", { text:m.short }),
+      DA.el("span.k", { text:m.tag })
+    ]);
+    b.addEventListener("click", function(){ setMode(m.key, true); });
+    b.addEventListener("keydown", function(e){
+      var d = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+      if(!d) return;
+      e.preventDefault();
+      var next = list[(i + d + list.length) % list.length];
       setMode(next.key, true);
       modeBtns[next.key].focus();
     });
     box.appendChild(b);
     modeBtns[m.key] = b;
   });
-})();
+}
+
+/* 目的を切り替えたら、その中の先頭のモードに移る（既に中にいるならそのまま） */
+function setGroup(key){
+  groupKey = key;
+  Object.keys(groupBtns).forEach(function(k){
+    groupBtns[k].setAttribute("aria-selected", k === key ? "true" : "false");
+    groupBtns[k].setAttribute("tabindex", k === key ? "0" : "-1");
+  });
+  var list = DA.modesOfGroup(key);
+  var stay = list.some(function(m){ return m.key === mode; });
+  setMode(stay ? mode : list[0].key, !stay);
+}
 
 /* 選択中のモードの説明とラウンドの流れ */
 function renderModePanel(){
@@ -355,7 +424,7 @@ function renderModePanel(){
   });
   var panel = $("modePanel");
   panel.innerHTML = "";
-  panel.setAttribute("aria-labelledby", "modetab-" + m.key);
+  panel.setAttribute("aria-labelledby", "modeopt-" + m.key);
   panel.appendChild(DA.el("h3", { text:m.label }));
   panel.appendChild(DA.el("p.s", { text:m.short }));
   panel.appendChild(DA.el("p.l", { text:m.lede }));
@@ -372,10 +441,15 @@ function renderModePanel(){
 function setMode(key, resetRounds){
   mode = key;
   var m = DA.findMode(key);
-  Object.keys(modeBtns).forEach(function(k){
-    modeBtns[k].setAttribute("aria-selected", k === key ? "true" : "false");
-    modeBtns[k].setAttribute("tabindex", k === key ? "0" : "-1");
-  });
+  var g = DA.groupOfMode(key);
+  if(g.key !== groupKey){
+    groupKey = g.key;
+    Object.keys(groupBtns).forEach(function(k){
+      groupBtns[k].setAttribute("aria-selected", k === groupKey ? "true" : "false");
+      groupBtns[k].setAttribute("tabindex", k === groupKey ? "0" : "-1");
+    });
+  }
+  renderModeList();
   if(resetRounds) F.rounds.value = String(m.defaultRounds);
   $("castSub").textContent =
     m.custom ? "席はあなたが決めます。カテゴリは議題の領域としてプロンプトに渡り、話の焦点が変わります。"

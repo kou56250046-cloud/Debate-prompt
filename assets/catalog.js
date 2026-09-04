@@ -325,8 +325,34 @@ const MODES = [
     cap:"4つの席はあなたが決めます。名前ではなく立場で書くほど、代弁の精度が上がります。" }
 ];
 
+/* モードの目的グループ。7つを一列に並べると選べないので、まず目的で絞る */
+const MODE_GROUPS = [
+  { key:"decide", name:"決める", note:"判断材料を出して、結論と打ち手を決める",
+    modes:["debate","redteam","stakeholder"] },
+  { key:"expand", name:"広げる", note:"案と視点を増やして、選べる幅を作る",
+    modes:["ideate","deep"] },
+  { key:"verify", name:"確かめる", note:"根拠と自分の考えを点検する",
+    modes:["academic","socratic"] }
+];
+
 DA.GROUPS = GROUPS;
 DA.CATS = CATS;
+DA.MODE_GROUPS = MODE_GROUPS;
+
+/* モードキーから、それが属する目的グループを引く */
+DA.groupOfMode = function(key){
+  for(var i=0;i<MODE_GROUPS.length;i++){
+    if(MODE_GROUPS[i].modes.indexOf(key) >= 0) return MODE_GROUPS[i];
+  }
+  return MODE_GROUPS[0];
+};
+/* グループ内のモード定義を並び順で返す */
+DA.modesOfGroup = function(groupKey){
+  var g = null;
+  for(var i=0;i<MODE_GROUPS.length;i++){ if(MODE_GROUPS[i].key === groupKey) g = MODE_GROUPS[i]; }
+  if(!g) g = MODE_GROUPS[0];
+  return g.modes.map(function(k){ return DA.findMode(k); });
+};
 DA.R = R;
 DA.ROUND_SETS = ROUND_SETS;
 DA.PLAN_NOTES = PLAN_NOTES;
