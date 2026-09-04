@@ -124,6 +124,8 @@ var Store = DA.store = {
       catLabel: d.catLabel || "",
       rounds: d.rounds || 3,
       toneIdx: typeof d.toneIdx === "number" ? d.toneIdx : 2,
+      /* ユーザーが指定した席（関係者総当り）。無ければ null */
+      seats: Array.isArray(d.seats) && d.seats.length === 4 ? d.seats : null,
       input: d.input || { topic:"", goal:"", context:"", limit:"", data:"" }
     };
   },

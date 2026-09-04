@@ -489,7 +489,10 @@ function pickOnly(id){
   var sel = $("nextKind");
   var LABEL = { debate:"討論で詰める — 決着させる", ideate:"アイデアを出す — 打ち手を増やす",
                 deep:"掘り下げる — なぜ詰まるのかを解く",
-                academic:"証拠で判定する — 根拠の強さで決める" };
+                academic:"証拠で判定する — 根拠の強さで決める",
+                socratic:"壁打ちでほぐす — 1問ずつ自分で答える",
+                redteam:"失敗から逆算する — 放置した場合を洗う",
+                stakeholder:"関係者でぶつける — 誰が我慢するかを決める" };
   DA.MODES.forEach(function(m){
     sel.appendChild(DA.el("option", { value:m.key, text: LABEL[m.key] || m.label }));
   });

@@ -20,7 +20,7 @@ DA.specMeta = function(mode){
   '  "schema": "debate-record/v1",',
   '  "meta": {',
   '    "title": "この回の短いタイトル（20字以内）",',
-  '    "mode": "' + (mode || "debate") + '",           // debate | ideate | deep | academic（変更しない）',
+  '    "mode": "' + (mode || "debate") + '",           // debate | ideate | deep | academic | socratic | redteam | stakeholder（変更しない）',
   '    "category": "カテゴリ名", "rounds": 3, "tone": "トーン名", "date": "YYYY-MM-DD",',
   '    "tags": ["横断検索用のキーワードを2〜4個"],',
   '    "seats": [ { "seat": 1, "name": "論者名", "stance": "初期スタンス1行", "premise": "この論者が置いている前提" } ]',
@@ -88,7 +88,7 @@ DA.specPart2 = function(){
 };
 
 /* ---------- 続き（追記用）のスキーマ debate-followup/v1 ---------- */
-/* kind: debate | ideate | deep | academic ／ rounds: 今回のラウンド数 ／ issues: 今回扱った論点 */
+/* kind: debate | ideate | deep | academic | socratic | redteam | stakeholder ／ rounds: 今回のラウンド数 ／ issues: 今回扱った論点 */
 DA.specFollowup = function(kind, rounds, issues){
   var ids = (issues || []).map(function(i){ return i.id; });
   var ex = ids[0] || "I1";
@@ -214,7 +214,7 @@ DA.normalize = function(input, extra){
     schema: DA.SCHEMA_VERSION,
     meta: {
       title: str(meta.title) || str(extra.title) || "無題の討論",
-      mode: pick(meta.mode, ["debate","ideate","deep","academic"], pick(extra.mode, ["debate","ideate","deep","academic"], "debate")),
+      mode: pick(meta.mode, ["debate","ideate","deep","academic","socratic","redteam","stakeholder"], pick(extra.mode, ["debate","ideate","deep","academic","socratic","redteam","stakeholder"], "debate")),
       category: str(meta.category) || str(extra.category),
       rounds: clamp(int(meta.rounds, int(extra.rounds, 3)), 1, 40),
       tone: str(meta.tone) || str(extra.tone),
@@ -343,7 +343,7 @@ DA.normalize = function(input, extra){
     return {
       no: int(s.no, i+1),
       date: /^\d{4}-\d{2}-\d{2}$/.test(str(s.date)) ? str(s.date) : DA.today(),
-      kind: pick(s.kind, ["debate","ideate","deep","academic"], "debate"),
+      kind: pick(s.kind, ["debate","ideate","deep","academic","socratic","redteam","stakeholder"], "debate"),
       kindLabel: str(s.kindLabel) || (DA.findMode ? DA.findMode(str(s.kind)).label : "討論"),
       focus: str(s.focus),
       rounds: clamp(int(s.rounds, 2), 1, 10),
@@ -432,7 +432,7 @@ DA.applyFollowup = function(rec, patch){
   var base = DA.normalize(JSON.parse(JSON.stringify(rec)));
   var no = base._sessions.length + 1;
   var sess = patch.session || {};
-  var kind = pick(sess.kind, ["debate","ideate","deep","academic"], "debate");
+  var kind = pick(sess.kind, ["debate","ideate","deep","academic","socratic","redteam","stakeholder"], "debate");
   var rounds = clamp(int(sess.rounds, 2), 1, 10);
 
   /* 既存の最終ラウンドの後ろに積む */

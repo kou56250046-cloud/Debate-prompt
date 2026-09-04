@@ -185,11 +185,15 @@ var editingId = DA.param("id") || "";
 
 function state(){
   var cat = DA.findCat($("i-cat").value) || CATS[0];
+  var key = $("i-mode").value || "debate";
+  /* 席をユーザーが指定するモードでは、compose 画面で入れた席を引き継ぐ */
+  var seats = DA.findMode(key).custom ? DA.store.loadDraft().seats : null;
   return {
-    mode: $("i-mode").value || "debate",
+    mode: key,
     cat: cat,
     rounds: parseInt($("i-rounds").value,10),
     toneIdx: parseInt($("i-tone").value,10),
+    seats: seats,
     input: { topic: $("i-topic").value }
   };
 }
@@ -199,10 +203,12 @@ function refreshPrompt(){
   $("structPrompt").textContent = DA.buildStructurePrompt(st, mode);
   $("pTitle").textContent = "構造化プロンプト（" + DA.findMode(st.mode).label + "）";
   $("pMeta").textContent = mode === "full" ? "FULL" : (mode === "p1" ? "PART 1 / 2" : "PART 2 / 2");
+  var prev = DA.store.loadDraft();
   DA.store.saveDraft({
     mode: st.mode,
     catLabel: st.cat.label, rounds: st.rounds, toneIdx: st.toneIdx,
-    input: Object.assign(DA.store.loadDraft().input || {}, { topic: st.input.topic })
+    seats: prev.seats,
+    input: Object.assign(prev.input || {}, { topic: st.input.topic })
   });
 }
 

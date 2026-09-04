@@ -45,6 +45,18 @@
     color:var(--ink-3);font-weight:700;margin-right:2px}
   .modepanel .flow i{color:var(--c4);font-style:normal}
   .modepanel .note{font-size:12.5px;color:var(--ink-3);margin:11px 0 0;line-height:1.7}
+
+  /* 関係者総当りの席入力 */
+  .seatbar{display:flex;align-items:flex-start;gap:14px;margin-top:20px}
+  .seatbar .btn{flex:none}
+  .seatgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}
+  @media (max-width:700px){ .seatgrid{grid-template-columns:1fr} .seatbar{flex-direction:column;gap:10px} }
+  .seatcell{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+  .seatcell .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--ink-3);font-weight:700;margin-bottom:7px}
+  .seatcell input{width:100%;box-sizing:border-box;background:var(--surface);color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--sans);font-size:13.5px}
+  .seatcell input:focus{outline:none;border-color:var(--c5)}
+  .seatcell input + input{margin-top:7px;font-size:12.5px;color:var(--ink-2)}
 </style>
 </head>
 <body>
@@ -54,11 +66,11 @@
 <header class="reveal">
   <div class="eyebrow e4">Step 00–03 / Compose</div>
   <h1>議題をひとつ投げると、<br><em>4人</em>が席につく。</h1>
-  <p class="lede">潰し合わせるか、案を出させるか、掘らせるか、証拠で判定させるか。目的に合わせて卓を選びます。あなたは議論に参加しません。読むだけで、自分の考えの浅かった場所が見えます。</p>
+  <p class="lede">潰し合わせるか、案を出させるか、掘らせるか、証拠で判定させるか。目的に合わせて卓を選びます。壁打ちを選んだときだけ、あなたも席に着きます。</p>
   <div class="chips">
-    <span class="chip">モード <b>4</b></span>
+    <span class="chip">モード <b>7</b></span>
     <span class="chip">カテゴリ <b>14</b></span>
-    <span class="chip">論者 <b>4</b></span>
+    <span class="chip">論者 <b>1–4</b></span>
     <span class="chip">司会 <b>1</b></span>
     <span class="chip">ラウンド <b>2–5</b></span>
     <span class="chip">分量 <b>5,000字以上・上限なし</b></span>
@@ -114,6 +126,15 @@
   <h2>カテゴリを選ぶ</h2>
   <p class="sub" id="castSub">仕事から日常、教会の活動まで14種類。選ぶと配置図・論者・プロンプトが同時に差し替わります。</p>
   <div id="tabGroups"></div>
+
+  <div id="seatEditor" hidden>
+    <div class="seatbar">
+      <p class="sub" style="margin:0">この件に実際に関わる4人を書きます。個人名より <b>立場</b>（直属の上司／会計担当／来られていない人）で書くほど、代弁の精度が上がります。空欄の席は既定の立場のまま使われます。</p>
+      <button class="btn btn-ghost btn-sm" type="button" id="seatReset">既定に戻す</button>
+    </div>
+    <div class="seatgrid" id="seatFields"></div>
+  </div>
+
   <div class="roles" id="roles"></div>
 </section>
 
@@ -211,7 +232,7 @@
 </section>
 
 <footer>
-  <span>DISCUSSION PROTOCOL v4 — 14 CATEGORIES / 4 SEATS / NO MERCY</span>
+  <span>DISCUSSION PROTOCOL v5 — 7 MODES / 14 CATEGORIES / NO MERCY</span>
   <span><a href="index.html">記録を見る</a></span>
 </footer>
 </div>
@@ -233,16 +254,68 @@ var mode = "debate";
 var F = { topic:$("f-topic"), goal:$("f-goal"), context:$("f-context"), limit:$("f-limit"),
           data:$("f-data"), tone:$("f-tone"), rounds:$("f-rounds") };
 
+/* 関係者総当りでユーザーが指定した席。[[名前,説明],…] */
+var customSeats = null;
+
 function state(){
+  var m = DA.findMode(mode);
   return {
     mode: mode,
     cat: CATS[current],
     rounds: parseInt(F.rounds.value,10),
     toneIdx: parseInt(F.tone.value,10),
+    seats: m.custom ? seatsFromFields() : null,
     input: { topic:F.topic.value, goal:F.goal.value, context:F.context.value,
              limit:F.limit.value, data:F.data.value }
   };
 }
+
+/* ---------- 席の編集（関係者総当り） ---------- */
+var seatInputs = [];
+(function buildSeatFields(){
+  var box = $("seatFields");
+  for(var i=0;i<4;i++){
+    (function(k){
+      var name = DA.el("input", { type:"text", maxlength:"24",
+        placeholder:"立場（例：直属の上司）", "aria-label":"席" + (k+1) + " の立場" });
+      var desc = DA.el("input", { type:"text", maxlength:"90",
+        placeholder:"何から見るか（例：決裁と自分の評価から見る）", "aria-label":"席" + (k+1) + " の見方" });
+      [name,desc].forEach(function(el){ el.addEventListener("input", onSeatEdit); });
+      box.appendChild(DA.el("div.seatcell", null, [
+        DA.el("div.k", { text:"SEAT 0" + (k+1) }), name, desc
+      ]));
+      seatInputs.push({ name:name, desc:desc });
+    })(i);
+  }
+})();
+
+/* 空欄は既定の立場で埋める */
+function seatsFromFields(){
+  var def = DA.findMode("stakeholder").roles;
+  return seatInputs.map(function(f,k){
+    var n = (f.name.value || "").trim() || def[k][0];
+    var d = (f.desc.value || "").trim() || def[k][1];
+    return [n, d];
+  });
+}
+function fillSeatFields(seats){
+  var def = DA.findMode("stakeholder").roles;
+  seatInputs.forEach(function(f,k){
+    var s = (seats && seats[k]) || null;
+    var isDefault = s && s[0] === def[k][0] && s[1] === def[k][1];
+    f.name.value = s && !isDefault ? s[0] : "";
+    f.desc.value = s && !isDefault ? s[1] : "";
+  });
+}
+function onSeatEdit(){
+  customSeats = seatsFromFields();
+  select(current);
+}
+$("seatReset").addEventListener("click", function(){
+  customSeats = null;
+  fillSeatFields(null);
+  select(current);
+});
 
 /* ---------- モードタブ ---------- */
 var modeBtns = {};
@@ -287,10 +360,13 @@ function renderModePanel(){
   panel.appendChild(DA.el("p.s", { text:m.short }));
   panel.appendChild(DA.el("p.l", { text:m.lede }));
   panel.appendChild(flow);
-  if(m.key === "academic"){
-    panel.appendChild(DA.el("p.note", { text:
-      "注意：このモードだけは外部の知識を持ち出させます。根拠には [確立] [有力] [議論あり] [限定的] [理論] [要確認] の水準が付き、記憶に頼った出典・数値は [要確認] としてエビデンス台帳に残ります。台帳の項目は必ず自分で裏を取ってください。" }));
-  }
+  var NOTE = {
+    academic:"注意：このモードだけは外部の知識を持ち出させます。根拠には [確立] [有力] [議論あり] [限定的] [理論] [要確認] の水準が付き、記憶に頼った出典・数値は [要確認] としてエビデンス台帳に残ります。台帳の項目は必ず自分で裏を取ってください。",
+    socratic:"注意：このモードだけは、あなたが答える番があります。AI は1問ずつ止まって待つので、返信して対話を進めてください。ラウンド数は「問いの段階の数」です。",
+    redteam:"進め方：議題には、迷っていることではなく **すでに決めたこと** を書いてください。「失敗した」という前提から逆算するので、決まっていない案では空回りします。",
+    stakeholder:"進め方：下の4席に、この件に実際に関わる人を立場で書いてください。空欄のままでも動きますが、実在の立場を入れるほど発言が具体的になります。"
+  };
+  if(NOTE[m.key]) panel.appendChild(DA.el("p.note", { text:NOTE[m.key] }));
 }
 
 function setMode(key, resetRounds){
@@ -301,10 +377,29 @@ function setMode(key, resetRounds){
     modeBtns[k].setAttribute("tabindex", k === key ? "0" : "-1");
   });
   if(resetRounds) F.rounds.value = String(m.defaultRounds);
-  $("castSub").textContent = m.roles
-    ? "このモードの4名は固定です。カテゴリは議題の領域としてプロンプトに渡り、話の焦点が変わります。"
-    : "仕事から日常、教会の活動まで14種類。選ぶと配置図・論者・プロンプトが同時に差し替わります。";
+  $("castSub").textContent =
+    m.custom ? "席はあなたが決めます。カテゴリは議題の領域としてプロンプトに渡り、話の焦点が変わります。"
+  : m.interactive ? "この卓は1対1です。カテゴリは議題の領域としてプロンプトに渡り、問いの向きが変わります。"
+  : m.roles ? "このモードの4名は固定です。カテゴリは議題の領域としてプロンプトに渡り、話の焦点が変わります。"
+  : "仕事から日常、教会の活動まで14種類。選ぶと配置図・論者・プロンプトが同時に差し替わります。";
+  $("f-rounds").previousElementSibling.textContent = m.interactive ? "問いの段階数" : "討論ラウンド数";
+  renderRoundOptions(m);
+  $("seatEditor").hidden = !m.custom;
+  if(m.custom) fillSeatFields(customSeats);
   select(current);
+}
+
+/* ラウンド数の選択肢は、モードごとの解説の一言目を使う */
+function renderRoundOptions(m){
+  var sel = F.rounds, keep = sel.value;
+  var unit = m.interactive ? "段階" : "ラウンド";
+  sel.innerHTML = "";
+  [2,3,4,5].forEach(function(n){
+    var hint = String(m.notes[n] || "").split("。")[0];
+    sel.appendChild(DA.el("option", { value:String(n), text:n + unit + " — " + hint }));
+  });
+  sel.value = keep;
+  if(!sel.value) sel.value = String(m.defaultRounds);
 }
 
 function renderRoundCards(){
@@ -338,16 +433,19 @@ function renderPlans(){
 
 function refresh(){
   var m = DA.findMode(mode);
-  $("fullPrompt").textContent = DA.buildMainPrompt(state());
+  var st = state();
+  $("fullPrompt").textContent = DA.buildMainPrompt(st);
   $("cardTitle").textContent = m.label + " ／ " + CATS[current].label;
-  $("cardMeta").textContent = m.tag + " / " + F.rounds.value + " ROUNDS / " + TONES[parseInt(F.tone.value,10)].label;
+  $("cardMeta").textContent = m.tag + " / " + F.rounds.value +
+    (m.interactive ? " STAGES / " : " ROUNDS / ") + TONES[parseInt(F.tone.value,10)].label;
   renderModePanel(); renderRoundCards(); renderPlans();
   DA.store.saveDraft({
     mode: mode,
     catLabel: CATS[current].label,
     rounds: parseInt(F.rounds.value,10),
     toneIdx: parseInt(F.tone.value,10),
-    input: state().input
+    seats: customSeats,
+    input: st.input
   });
 }
 
@@ -367,12 +465,32 @@ GROUPS.forEach(function(g){
   tabGroups.appendChild(row);
 });
 
+/* 席のタグ。3つ目の要素があればそれを使う（壁打ちの ASKER / YOU など） */
+function seatTag(r, k){ return r[2] || ("SEAT " + String(k+1).padStart(2,"0")); }
+
+/* 配置図を席数に合わせる。壁打ちは司会なしの2席、それ以外は司会＋4席 */
+function paintDiagram(cast, m){
+  $("g0").style.display = m.chair === false ? "none" : "";
+  ["g1","g2","g3","g4"].forEach(function(id,k){
+    $(id).style.display = k < cast.length ? "" : "none";
+    if(k >= cast.length) return;
+    var tag = document.querySelector("#" + id + " .seat-tag");
+    if(tag) tag.textContent = seatTag(cast[k], k);
+  });
+  $("web").style.display = cast.length >= 3 ? "" : "none";
+  var cap = document.querySelector("#diagram .cap");
+  if(cap) cap.textContent = m.cap ||
+    "破線は「前提の破壊」ラウンドで発生する相互反論。各自が最低2名を名指しで攻撃します。";
+}
+
 function select(i){
   current = i;
   var cat = CATS[i];
-  var cast = DA.rolesOf(mode, cat);
+  var m = DA.findMode(mode);
+  var cast = m.custom && customSeats ? customSeats : DA.rolesOf(mode, cat);
   allTabs.forEach(function(b,j){ b.setAttribute("aria-selected", j === i ? "true" : "false"); });
 
+  paintDiagram(cast, m);
   var seats = ["s1","s2","s3","s4"].map(function(id){ return $(id); });
   seats.forEach(function(el){ el.classList.add("fade","out"); });
   setTimeout(function(){
@@ -386,7 +504,7 @@ function select(i){
   var roles = $("roles"); roles.innerHTML = "";
   cast.forEach(function(r,k){
     roles.appendChild(DA.el("div.role", null, [
-      DA.el("div.n", { text:"SEAT " + String(k+1).padStart(2,"0") }),
+      DA.el("div.n", { text:seatTag(r, k) }),
       DA.el("h3", { text:r[0] }),
       DA.el("p", { text:r[1] })
     ]));
@@ -433,6 +551,10 @@ seatIO.observe($("diagram"));
   }
   if(d && d.rounds) F.rounds.value = String(d.rounds);
   if(d && typeof d.toneIdx === "number") F.tone.value = String(d.toneIdx);
+  if(d && d.seats && d.seats.length === 4){
+    customSeats = d.seats;
+    fillSeatFields(customSeats);
+  }
   var start = 0;
   if(d && d.catLabel){
     for(var i=0;i<CATS.length;i++){ if(CATS[i].label === d.catLabel){ start = i; break; } }
