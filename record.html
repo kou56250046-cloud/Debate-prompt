@@ -488,7 +488,8 @@ function pickOnly(id){
 (function fillKinds(){
   var sel = $("nextKind");
   var LABEL = { debate:"討論で詰める — 決着させる", ideate:"アイデアを出す — 打ち手を増やす",
-                deep:"掘り下げる — なぜ詰まるのかを解く" };
+                deep:"掘り下げる — なぜ詰まるのかを解く",
+                academic:"証拠で判定する — 根拠の強さで決める" };
   DA.MODES.forEach(function(m){
     sel.appendChild(DA.el("option", { value:m.key, text: LABEL[m.key] || m.label }));
   });

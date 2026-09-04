@@ -18,17 +18,33 @@
 (function(){try{var t=localStorage.getItem("debate-app:theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
 </script>
 <style>
-  .modecards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
-  @media (max-width:760px){ .modecards{grid-template-columns:1fr} }
-  .modecard{appearance:none;cursor:pointer;text-align:left;background:var(--card);color:var(--ink);
-    border:1px solid var(--line);border-radius:14px;padding:16px 16px 15px;transition:all .18s;font-family:var(--sans)}
-  .modecard:hover{border-color:var(--c4)}
-  .modecard[aria-pressed="true"]{border-color:var(--c5);box-shadow:0 0 0 1px var(--c5) inset}
-  .modecard .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--ink-3);font-weight:700}
-  .modecard[aria-pressed="true"] .k{color:var(--c5)}
-  .modecard h3{font-size:16px;margin:6px 0 4px}
-  .modecard .s{font-size:12.5px;color:var(--ink-3);margin:0 0 8px}
-  .modecard p{font-size:13px;line-height:1.75;color:var(--ink-2);margin:0}
+  /* モードタブ：下線タブ。選択中のモードの中身は直下のパネルに出る */
+  .modetabs{display:flex;gap:4px;margin-top:18px;border-bottom:1px solid var(--line);
+    overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .modetabs::-webkit-scrollbar{display:none}
+  .modetab{appearance:none;cursor:pointer;background:none;color:var(--ink-3);border:0;
+    border-bottom:2px solid transparent;margin-bottom:-1px;padding:11px 16px 10px;
+    font-family:var(--sans);font-size:14.5px;white-space:nowrap;transition:all .18s;
+    display:flex;align-items:baseline;gap:8px}
+  .modetab:hover{color:var(--c4)}
+  .modetab .k{font-family:var(--mono);font-size:9px;letter-spacing:.12em;font-weight:700;opacity:.65}
+  .modetab[aria-selected="true"]{color:var(--c5);border-bottom-color:var(--c5);font-weight:700}
+  .modetab[aria-selected="true"] .k{opacity:1}
+  .modetab:focus-visible{outline:2px solid var(--c2);outline-offset:-4px}
+  @media (max-width:520px){ .modetab{padding:10px 12px 9px;font-size:13.5px} .modetab .k{display:none} }
+
+  .modepanel{background:var(--card);border:1px solid var(--line);border-top:0;
+    border-radius:0 0 14px 14px;padding:18px 20px 17px;
+    animation:rise .4s cubic-bezier(.2,.7,.3,1) both}
+  .modepanel h3{font-size:16.5px;margin:0 0 3px}
+  .modepanel .s{font-size:12.5px;color:var(--ink-3);margin:0 0 9px}
+  .modepanel p.l{font-size:13.5px;line-height:1.8;color:var(--ink-2);margin:0}
+  .modepanel .flow{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:13px;
+    padding-top:13px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink-2)}
+  .modepanel .flow b{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+    color:var(--ink-3);font-weight:700;margin-right:2px}
+  .modepanel .flow i{color:var(--c4);font-style:normal}
+  .modepanel .note{font-size:12.5px;color:var(--ink-3);margin:11px 0 0;line-height:1.7}
 </style>
 </head>
 <body>
@@ -38,9 +54,9 @@
 <header class="reveal">
   <div class="eyebrow e4">Step 00–03 / Compose</div>
   <h1>議題をひとつ投げると、<br><em>4人</em>が席につく。</h1>
-  <p class="lede">潰し合わせるか、案を出させるか、掘らせるか。目的に合わせて卓を選びます。あなたは議論に参加しません。読むだけで、自分の考えの浅かった場所が見えます。</p>
+  <p class="lede">潰し合わせるか、案を出させるか、掘らせるか、証拠で判定させるか。目的に合わせて卓を選びます。あなたは議論に参加しません。読むだけで、自分の考えの浅かった場所が見えます。</p>
   <div class="chips">
-    <span class="chip">モード <b>3</b></span>
+    <span class="chip">モード <b>4</b></span>
     <span class="chip">カテゴリ <b>14</b></span>
     <span class="chip">論者 <b>4</b></span>
     <span class="chip">司会 <b>1</b></span>
@@ -53,7 +69,8 @@
   <div class="eyebrow e5">Step 00 / Mode</div>
   <h2>何をさせるかを選ぶ</h2>
   <p class="sub">同じ議題でも、卓の目的が変われば出てくるものが変わります。迷ったら討論です。</p>
-  <div class="modecards" id="modeCards" role="group" aria-label="モード"></div>
+  <div class="modetabs" id="modeTabs" role="tablist" aria-label="モード"></div>
+  <div class="modepanel" id="modePanel" role="tabpanel"></div>
 </section>
 
 <div class="panel reveal" id="diagram">
@@ -227,28 +244,61 @@ function state(){
   };
 }
 
-/* ---------- モード ---------- */
+/* ---------- モードタブ ---------- */
 var modeBtns = {};
 (function renderModes(){
-  var box = $("modeCards");
-  DA.MODES.forEach(function(m){
-    var b = DA.el("button.modecard", { type:"button", "aria-pressed": m.key === mode ? "true" : "false" }, [
-      DA.el("div.k", { text:m.tag }),
-      DA.el("h3", { text:m.label }),
-      DA.el("p.s", { text:m.short }),
-      DA.el("p", { text:m.lede })
+  var box = $("modeTabs");
+  DA.MODES.forEach(function(m, i){
+    var b = DA.el("button.modetab", {
+      type:"button", role:"tab", id:"modetab-" + m.key,
+      "aria-selected": m.key === mode ? "true" : "false",
+      tabindex: m.key === mode ? "0" : "-1"
+    }, [
+      DA.el("span.k", { text:m.tag }),
+      DA.el("span", { text:m.label })
     ]);
     b.addEventListener("click", function(){ setMode(m.key, true); });
+    b.addEventListener("keydown", function(e){
+      var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if(!d) return;
+      e.preventDefault();
+      var next = DA.MODES[(i + d + DA.MODES.length) % DA.MODES.length];
+      setMode(next.key, true);
+      modeBtns[next.key].focus();
+    });
     box.appendChild(b);
     modeBtns[m.key] = b;
   });
 })();
 
+/* 選択中のモードの説明とラウンドの流れ */
+function renderModePanel(){
+  var m = DA.findMode(mode);
+  var n = parseInt(F.rounds.value,10);
+  var flow = DA.el("div.flow", null, [ DA.el("b", { text:n + " ROUNDS" }) ]);
+  DA.roundsOf(mode, n).forEach(function(r,i){
+    if(i > 0) flow.appendChild(DA.el("i", { text:"→" }));
+    flow.appendChild(document.createTextNode(r.name));
+  });
+  var panel = $("modePanel");
+  panel.innerHTML = "";
+  panel.setAttribute("aria-labelledby", "modetab-" + m.key);
+  panel.appendChild(DA.el("h3", { text:m.label }));
+  panel.appendChild(DA.el("p.s", { text:m.short }));
+  panel.appendChild(DA.el("p.l", { text:m.lede }));
+  panel.appendChild(flow);
+  if(m.key === "academic"){
+    panel.appendChild(DA.el("p.note", { text:
+      "注意：このモードだけは外部の知識を持ち出させます。根拠には [確立] [有力] [議論あり] [限定的] [理論] [要確認] の水準が付き、記憶に頼った出典・数値は [要確認] としてエビデンス台帳に残ります。台帳の項目は必ず自分で裏を取ってください。" }));
+  }
+}
+
 function setMode(key, resetRounds){
   mode = key;
   var m = DA.findMode(key);
   Object.keys(modeBtns).forEach(function(k){
-    modeBtns[k].setAttribute("aria-pressed", k === key ? "true" : "false");
+    modeBtns[k].setAttribute("aria-selected", k === key ? "true" : "false");
+    modeBtns[k].setAttribute("tabindex", k === key ? "0" : "-1");
   });
   if(resetRounds) F.rounds.value = String(m.defaultRounds);
   $("castSub").textContent = m.roles
@@ -291,7 +341,7 @@ function refresh(){
   $("fullPrompt").textContent = DA.buildMainPrompt(state());
   $("cardTitle").textContent = m.label + " ／ " + CATS[current].label;
   $("cardMeta").textContent = m.tag + " / " + F.rounds.value + " ROUNDS / " + TONES[parseInt(F.tone.value,10)].label;
-  renderRoundCards(); renderPlans();
+  renderModePanel(); renderRoundCards(); renderPlans();
   DA.store.saveDraft({
     mode: mode,
     catLabel: CATS[current].label,

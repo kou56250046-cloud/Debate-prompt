@@ -3,7 +3,7 @@
    ─ 静的アセット：stale-while-revalidate（表示は即時、裏で更新）
    キャッシュを作り直したいときは CACHE の版番号を上げる。 */
 
-var VERSION = "v3";
+var VERSION = "v4";
 var CACHE = "debate-app-" + VERSION;
 
 /* 初回インストール時に取り込む一式。アプリ全体がオフラインで動く。 */
